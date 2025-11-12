@@ -372,6 +372,7 @@
         <h2>Overview</h2>
         <p>This calculator translates Db2 for z/OS mainframe workload metrics into equivalent Snowflake compute requirements using a calibration-based approach. Each Db2 for z/OS metric serves a specific purpose in determining the optimal Snowflake warehouse size and associated costs.</p>
         <p><strong>Key Principle:</strong> We convert Db2 for z/OS CPU time to Snowflake XS-equivalent hours using workload-specific calibration factors (k-values), then select the smallest warehouse size that can complete the workload within the batch window.</p>
+        <p><strong>⚠️ Important Limitation:</strong> This calculator estimates costs for <strong>primary production workloads only</strong>. High Availability (HA) and Disaster Recovery (DR) scenarios require additional cost estimation for standby systems, replication compute, cross-region failover, and related infrastructure. These costs should be calculated separately based on your specific HA/DR requirements (RTO/RPO targets, replication methods, failover configurations, etc.).</p>
       </section>
 
       <section class="card" id="key-concepts">
@@ -433,7 +434,10 @@
           <p><strong>Why this metric:</strong></p>
           <ul>
             <li><strong>CPU time is workload-agnostic:</strong> Unlike elapsed time, CPU time measures actual processing work regardless of I/O wait, contention, or system load</li>
-            <li><strong>Standardized measurement:</strong> Db2 for z/OS CPU seconds are consistently measured across different mainframe configurations and environments</li>
+            <li><strong>Consistently measured:</strong> Db2 for z/OS CPU seconds use the same unit of time (seconds) across different mainframe configurations and environments, making them consistently measurable</li>
+            <li><strong>Not normalized across generations:</strong> CPU seconds are <strong>not</strong> normalized across mainframe generations (e.g., z15 vs z17). A CPU second on a z15 represents different compute capacity than a CPU second on a z17. IBM uses MSUs (Millions of Service Units) for normalization across generations, not CPU seconds</li>
+            <li><strong>k-factor accounts for differences:</strong> The k-factor attempts to account for generation differences, platform differences (mainframe vs cloud), and workload-specific performance characteristics, but it is an approximation. Estimates may be inaccurate by 1.4× or more, especially when comparing across different mainframe generations</li>
+            <li><strong>MSU input recommended:</strong> If MSUs are available, they provide better normalization across generations. Convert MSUs to CPU seconds using your mainframe's MSU-to-CPU-second ratio for your specific configuration</li>
             <li><strong>Direct compute correlation:</strong> Snowflake warehouses are sized by compute capacity, making CPU time the most direct translation metric</li>
             <li><strong>Available in SMF:</strong> Db2 for z/OS CPU time is readily available in SMF Type 101 records (IFCID 0003), making it accessible to DBAs</li>
           </ul>
@@ -520,9 +524,9 @@
           <h3>6. Workload Family</h3>
           <p><strong>How it's used:</strong></p>
           <ul>
-            <li><strong>Calibration Factor Selection:</strong> Determines the k-value used in the conversion formula</li>
+            <li><strong>Calibration Factor Selection:</strong> Workload families are categories that map to specific k-values based on how each workload type performs in Snowflake vs Db2. The selected workload family determines which k-value is used in the conversion formula</li>
             <li><strong>Formula:</strong> <code>XS Hours = (Db2 for z/OS CPU seconds × k) / 3600</code></li>
-            <li>Different workload types have different k-values:
+            <li><strong>k-factor selection mechanism:</strong> The k-factor is the mechanism by which workload families account for performance differences. Each workload family has a default k-value:
               <ul>
                 <li><strong>ELT Batch:</strong> k = 1.8 (transformation-heavy, moderate overhead)</li>
                 <li><strong>Reporting:</strong> k = 2.4 (query-heavy, higher Snowflake overhead for complex analytics)</li>
@@ -532,17 +536,19 @@
           </ul>
           <p><strong>Why this metric:</strong></p>
           <ul>
-            <li><strong>Workload-specific performance:</strong> Different workload types have different performance characteristics in Snowflake vs DB2</li>
+            <li><strong>Workload-specific performance:</strong> Different workload types have different performance characteristics in Snowflake vs DB2. Workload families group similar workloads together so they can share the same k-value</li>
             <li><strong>Calibration accuracy:</strong> k-values are derived from empirical testing and account for:
               <ul>
                 <li>Query optimization differences (Snowflake's optimizer vs DB2)</li>
                 <li>Data model differences (columnar vs row-based storage)</li>
                 <li>Network overhead (cloud vs on-premise)</li>
                 <li>Transformation complexity (ELT patterns differ from ETL)</li>
+                <li>Mainframe generation differences (z15 vs z17 compute capacity differences)</li>
+                <li>Platform differences (mainframe vs cloud architecture)</li>
               </ul>
             </li>
             <li><strong>Empirical basis:</strong> k-values should be calibrated based on actual migration testing (see <a href="./docs/calibration_guide.html">Calibration Guide</a>)</li>
-            <li><strong>Cost accuracy:</strong> Using the correct k-value ensures accurate cost estimates</li>
+            <li><strong>Cost accuracy:</strong> Using the correct workload family ensures the correct k-value is applied, improving cost estimate accuracy</li>
           </ul>
           <p><strong>Calibration Note:</strong> Default k-values are starting points. Organizations should calibrate these values based on their specific workloads after initial migration testing.</p>
         </div>

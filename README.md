@@ -66,6 +66,8 @@ python scripts/cli.py \
 
 **Without proper calibration, estimates can be inaccurate by 50% or more.**
 
+**⚠️ High Availability/Disaster Recovery (HA/DR) Not Included:** This calculator estimates costs for primary production workloads only. HA/DR scenarios require additional cost estimation for standby systems, replication compute, cross-region failover, and related infrastructure. These costs should be calculated separately based on your specific HA/DR requirements.
+
 ## Common Use Cases
 
 ### Scenario 1: Initial Migration Estimate
@@ -86,6 +88,18 @@ python scripts/cli.py \
 - Test multi-cluster vs single-cluster warehouses
 - Evaluate impact of different batch windows
 - Model serverless features (Snowpipe, Tasks) vs traditional ETL
+
+## Limitations
+
+This calculator provides estimates for **primary production workloads only**. The following are **not included** and should be estimated separately:
+
+- **High Availability (HA)**: Standby systems, active-active configurations, or failover compute resources
+- **Disaster Recovery (DR)**: Cross-region replication, DR site compute, backup/restore infrastructure
+- **Development/Test Environments**: Non-production environments require separate cost estimates
+- **Data Replication**: Cross-region or cross-cloud replication costs beyond basic egress
+- **Additional Services**: Third-party tools, monitoring, security services, or other Snowflake ecosystem costs
+
+For HA/DR scenarios, consult with your Snowflake account representative to estimate additional infrastructure costs based on your specific requirements (RTO/RPO targets, replication methods, failover configurations, etc.).
 
 ## Core model
 1) `xs_hours = (db2_cpu_seconds_per_day × k) / 3600` (where db2_cpu_seconds_per_day is Db2 for z/OS CPU seconds)  

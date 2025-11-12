@@ -47,7 +47,8 @@
         <li><strong>Data Model Differences:</strong> Db2 uses row-based storage while Snowflake uses columnar storage, which affects performance differently depending on query patterns. Columnar storage excels at analytical queries but may have overhead for row-by-row operations.</li>
         <li><strong>Network Overhead:</strong> Cloud-based Snowflake has network latency between compute and storage that on-premise Db2 doesn't have. Data must traverse cloud networks, adding latency.</li>
         <li><strong>Transformation Complexity:</strong> ELT patterns in Snowflake differ from traditional ETL patterns in Db2, affecting processing efficiency. Snowflake's architecture favors loading data first, then transforming, which can change performance characteristics.</li>
-        <li><strong>System Architecture:</strong> Different hardware (cloud vs mainframe), caching strategies, and resource allocation models affect how efficiently work is processed.</li>
+        <li><strong>Mainframe Generation Differences:</strong> CPU seconds are <strong>not</strong> normalized across mainframe generations. A CPU second on a z15 represents different compute capacity than a CPU second on a z17 (IBM reports ~14% increase in compute capability between z15 and z17). IBM uses MSUs (Millions of Service Units) for normalization across generations, not CPU seconds. The k-factor attempts to account for these differences but is an approximation.</li>
+        <li><strong>System Architecture:</strong> Different hardware (cloud vs mainframe), caching strategies, and resource allocation models affect how efficiently work is processed. For example, z17 processors run at 5.6GHz while AWS typically delivers ~3.5GHz, meaning "a second is not a second" in terms of actual work done.</li>
         <li><strong>Concurrency Models:</strong> Snowflake's multi-cluster architecture handles concurrent queries differently than Db2's single-system model.</li>
       </ul>
       
@@ -75,13 +76,24 @@
       </ul>
       
       <p><strong>Key Insight:</strong> The k-factor is not a universal constant—it's specific to your workload type, data patterns, and migration approach. That's why calibration is essential for accurate cost estimates. Even within the same workload family, different organizations may have different k-values based on their specific data characteristics and query patterns.</p>
+      
+      <h3>Accuracy Limitations</h3>
+      <p><strong>Important:</strong> The k-factor is an approximation that attempts to account for multiple sources of performance differences, including:</p>
+      <ul>
+        <li>Mainframe generation differences (z15 vs z17 have different compute capacity per CPU second)</li>
+        <li>Platform differences (mainframe vs cloud architecture)</li>
+        <li>Workload-specific performance characteristics</li>
+      </ul>
+      <p>However, these estimates are approximations and may be inaccurate by 1.4× or more, especially when comparing across different mainframe generations. The calculator provides a reasonable starting point for cost estimation, but actual costs may vary significantly based on your specific environment, workload patterns, and migration approach. Always validate estimates with pilot migrations and adjust k-values accordingly.</p>
     </section>
 
     <section class="card">
       <h2>Calibration Steps</h2>
       <ol>
         <li><strong>Pick a representative job</strong> for the workload family (e.g., ELT batch, reporting, or CDC).</li>
-        <li><strong>Obtain Db2 for z/OS CPU seconds/day</strong> from SMF/IFCID records (see the <a href="./db2_dba_how_to_use.html">DBA Guide</a> for details).</li>
+        <li><strong>Obtain Db2 for z/OS CPU seconds/day</strong> from SMF/IFCID records (see the <a href="./db2_dba_how_to_use.html">DBA Guide</a> for details).
+          <p><strong>Note on MSUs:</strong> If MSUs (Millions of Service Units) are available, they provide better normalization across mainframe generations than CPU seconds. Convert MSUs to CPU seconds using your mainframe's MSU-to-CPU-second ratio for your specific configuration. MSUs normalize compute capacity across different mainframe generations (z15, z17, etc.), which CPU seconds do not.</p>
+        </li>
         <li><strong>Run the equivalent Snowflake flow once</strong> on an <strong>XS</strong> warehouse.</li>
         <li><strong>Record total credits consumed</strong> and <strong>elapsed hours</strong> on Snowflake.</li>
         <li><strong>Compute XS hours:</strong>
@@ -197,6 +209,10 @@
 
     <section class="card">
       <h2>Workload Families</h2>
+      <p><strong>What are Workload Families?</strong> Workload families are categories that group similar workloads together based on their performance characteristics. Each workload family maps to a specific k-value because different workload types perform differently in Snowflake vs Db2 for z/OS.</p>
+      
+      <p><strong>Why Different Families Need Different k-values:</strong> The k-factor is the mechanism by which workload families account for performance differences. When you select a workload family, the calculator uses that family's k-value to convert Db2 CPU seconds to Snowflake XS-equivalent hours. This ensures that workloads with similar characteristics (e.g., all reporting queries) use the same calibration factor, improving estimate accuracy.</p>
+      
       <p>Maintain separate k values for each workload type. Different workload types have different performance characteristics in Snowflake:</p>
       
       <h3>ELT Batch</h3>
