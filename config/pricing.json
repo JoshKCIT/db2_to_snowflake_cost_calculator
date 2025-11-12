@@ -18,6 +18,12 @@
       "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
       "displayName": "EU Dublin"
     },
+    "aws-eu-west-1": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "EU West 1 (Ireland)"
+    },
     "aws-eu-frankfurt": {
       "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
       "storagePerTBMonth": 24.50,

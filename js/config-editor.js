@@ -2,53 +2,119 @@
  * Copyright (c) 2025 JoshKCIT
  * 
  * Configuration editor for Snowflake Budget Calculator
+ * 
+ * This file manages the Configuration Editor tab in the web application.
+ * It provides a UI for editing pricing, rules, and calibration settings.
+ * 
+ * Key Features:
+ * - Loads configuration from localStorage (user customizations) or defaults (config/*.js files)
+ * - Provides UI forms for editing pricing, rules, and calibration settings
+ * - Saves changes to localStorage automatically
+ * - Exports/imports configuration as JSON files
+ * - Updates window.CONFIG_* global variables for the calculator to use
+ * 
+ * Architecture:
+ * - Configuration is stored in browser localStorage (persists across sessions)
+ * - window.CONFIG_* variables are updated immediately when changes are saved
+ * - app.js listens for changes and refreshes dropdowns automatically
  */
 (function(){
   "use strict";
 
-  // Storage keys
+  // ============================================================================
+  // STORAGE KEYS
+  // ============================================================================
+  // Keys used to store configuration in browser localStorage
+  // These keys allow us to persist user customizations across browser sessions
+  
   const STORAGE_KEYS = {
-    PRICING: 'snowflake_config_pricing',
-    RULES: 'snowflake_config_rules',
-    CALIBRATION: 'snowflake_config_calibration'
+    PRICING: 'snowflake_config_pricing',        // Pricing configuration (regions, editions, storage, egress)
+    RULES: 'snowflake_config_rules',            // Rules configuration (warehouse credits, size factors, Cloud Services)
+    CALIBRATION: 'snowflake_config_calibration' // Calibration configuration (workload families, k-factors)
   };
 
-  // Get default configs
+  // ============================================================================
+  // DEFAULT CONFIGURATION GETTERS
+  // ============================================================================
+  // These functions retrieve default configuration from window.CONFIG_* variables
+  // These variables are set by config/*.js files loaded in index.html
+  // If window variables don't exist, return empty objects as fallback
+  
   const getDefaultPricing = () => window.CONFIG_PRICING || {};
   const getDefaultRules = () => window.CONFIG_RULES || {};
   const getDefaultCalibration = () => window.CONFIG_CALIBRATION || {};
 
-  // Load configs from localStorage or defaults
+  // ============================================================================
+  // CONFIGURATION LOAD/SAVE FUNCTIONS
+  // ============================================================================
+  // These functions handle loading from localStorage and saving to localStorage
+  // localStorage persists data across browser sessions (unlike sessionStorage)
+  
+  /**
+   * Loads configuration from localStorage or returns a deep clone of defaults.
+   * 
+   * This function checks localStorage first (user customizations), then falls back
+   * to default configuration. Deep cloning prevents accidental mutation of defaults.
+   * 
+   * @param {string} key - Storage key (from STORAGE_KEYS)
+   * @param {Object} defaultConfig - Default configuration object
+   * @returns {Object} Configuration object (from localStorage or defaults)
+   */
   function loadConfig(key, defaultConfig) {
     try {
       const stored = localStorage.getItem(key);
       if (stored) {
+        // User has custom configuration saved
         return JSON.parse(stored);
       }
     } catch (e) {
+      // Handle corrupted localStorage data gracefully
       console.error(`Error loading ${key}:`, e);
     }
-    return JSON.parse(JSON.stringify(defaultConfig)); // Deep clone
+    // No saved config or error loading: return deep clone of defaults
+    // Deep clone prevents mutation of original default object
+    return JSON.parse(JSON.stringify(defaultConfig));
   }
 
-  // Save config to localStorage
+  /**
+   * Saves configuration to localStorage.
+   * 
+   * This function persists user customizations to browser storage so they survive
+   * page refreshes and browser restarts.
+   * 
+   * @param {string} key - Storage key (from STORAGE_KEYS)
+   * @param {Object} config - Configuration object to save
+   * @returns {boolean} True if save succeeded, false otherwise
+   */
   function saveConfig(key, config) {
     try {
       localStorage.setItem(key, JSON.stringify(config));
       return true;
     } catch (e) {
+      // Handle storage quota exceeded or other errors
       console.error(`Error saving ${key}:`, e);
       alert(`Error saving configuration: ${e.message}`);
       return false;
     }
   }
 
-  // Current configs
+  // ============================================================================
+  // CURRENT CONFIGURATION STATE
+  // ============================================================================
+  // These variables hold the current configuration state (loaded from localStorage or defaults)
+  // They're updated when users make changes in the Configuration Editor UI
+  
   let currentPricing = loadConfig(STORAGE_KEYS.PRICING, getDefaultPricing());
   let currentRules = loadConfig(STORAGE_KEYS.RULES, getDefaultRules());
   let currentCalibration = loadConfig(STORAGE_KEYS.CALIBRATION, getDefaultCalibration());
 
+  // ============================================================================
+  // GLOBAL CONFIGURATION EXPORT
+  // ============================================================================
   // Initialize configs in window immediately (before app.js runs)
+  // app.js reads these variables to get configuration for calculations
+  // When users update configs, we update these variables so calculator picks up changes
+  
   window.CONFIG_PRICING = currentPricing;
   window.CONFIG_RULES = currentRules;
   window.CONFIG_CALIBRATION = currentCalibration;

@@ -2,9 +2,21 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Air‑gapped cost estimator for Db2 for z/OS→Snowflake migrations. Two entry points:
+**Air‑gapped** cost estimator for Db2 for z/OS→Snowflake migrations. Two entry points:
 - Static browser app: double‑click `index.html` (no server).
 - CLI: `python scripts/cli.py …` (Python 3.10+ stdlib only).
+
+## Prerequisites
+
+**For Static Browser App:**
+- Modern web browser (Chrome, Firefox, Edge, Safari - latest versions)
+- No server or internet connection required (works offline)
+- JavaScript enabled
+
+**For CLI:**
+- Python 3.10 or higher (check with `python --version`)
+- No additional Python packages required (uses stdlib only)
+- Works on Windows, macOS, and Linux
 
 ## Edit these files to change costs & rules
 - `config/pricing.json` — $/credit by region+edition, storage $/TB‑mo, egress $/TB, serverless credit units.
@@ -14,11 +26,18 @@ Air‑gapped cost estimator for Db2 for z/OS→Snowflake migrations. Two entry p
 > **k** = XS‑seconds on Snowflake needed to process 1 Db2 for z/OS CPU‑second for a given workload family.
 
 ## Quick start (static app)
-1) Review or edit files under `config/`.
-2) Open `index.html` from disk.
-3) Enter Db2 for z/OS metrics. Click **Calculate**. Use **Export** for JSON/CSV.
 
-The static app uses `config/*.js` (window variables) so it works from `file://`. Keep `*.json` and `*.js` in sync.
+**Best for:** Interactive use, visual interface, quick estimates
+
+1. **Download or clone** this repository
+2. **Review configuration** files under `config/` (see [Configuration](#edit-these-files-to-change-costs--rules) section)
+3. **Open `index.html`** from disk (double-click or right-click → Open with → Browser)
+4. **Enter Db2 for z/OS metrics** in the "DBA Inputs" section
+5. **Configure Snowflake settings** in the "Solution Architect Inputs" section
+6. **Click Calculate** to see results
+7. **Use Export** button to save results as JSON or CSV
+
+**Note:** The static app uses `config/*.js` (window variables) so it works from `file://`. Keep `*.json` and `*.js` in sync using the Configuration tab in the web app.
 
 ## Quick start (CLI)
 ```bash
@@ -32,10 +51,41 @@ python scripts/cli.py \
   --region aws-us-east-1 --edition enterprise \
   --workload-family elt_batch \
   --snowpipe-files-per-day 5000 \
-  --searchopt-tb 2 \
+  --searchopt-compute-hours-per-day 0.5 \
   --tasks-hours-per-day 1 \
   --out out.json --csv out.csv
 ```
+
+## ⚠️ Important: Calibrate Before Use
+
+**All pricing and calibration values in `config/` are placeholders.** Before using this tool for production estimates:
+
+1. **Update pricing**: Replace values in `config/pricing.json` with current Snowflake pricing from your account representative or [Snowflake Pricing Guide](https://www.snowflake.com/pricing/)
+2. **Calibrate k-values**: Follow the [Calibration Guide](docs/calibration_guide.html) to determine accurate k-factors for your workloads
+3. **Verify warehouse rules**: Confirm `config/rules.json` matches current Snowflake warehouse specifications
+
+**Without proper calibration, estimates can be inaccurate by 50% or more.**
+
+## Common Use Cases
+
+### Scenario 1: Initial Migration Estimate
+**Goal:** Get a rough budget estimate for migrating Db2 for z/OS workloads to Snowflake
+- Use default k-values as starting point
+- Run multiple scenarios with different warehouse sizes
+- Compare costs across regions/editions
+
+### Scenario 2: Refined Cost Analysis
+**Goal:** Accurate cost projection after pilot migration
+- Calibrate k-values using pilot workload data
+- Update pricing with actual Snowflake contract rates
+- Model different concurrency and batch window scenarios
+
+### Scenario 3: What-If Analysis
+**Goal:** Optimize costs by testing different configurations
+- Compare Standard vs Enterprise editions
+- Test multi-cluster vs single-cluster warehouses
+- Evaluate impact of different batch windows
+- Model serverless features (Snowpipe, Tasks) vs traditional ETL
 
 ## Core model
 1) `xs_hours = (db2_cpu_seconds_per_day × k) / 3600` (where db2_cpu_seconds_per_day is Db2 for z/OS CPU seconds)  
@@ -49,11 +99,112 @@ python scripts/cli.py \
 9) `transfer_monthly = TB × egressPerTB(route)`  
 10) `grand_total = monthly_dollars + storage_monthly + transfer_monthly`
 
+*(See [Calculation Logic tab](index.html#calculation-logic-tab) in the web app for detailed explanations)*
+
+**Note:** These formulas are implemented identically in both JavaScript (web app) and Python (CLI) for consistency.
+
 All numbers in `config/` are placeholders. Replace with your authoritative tables.
+
+## Troubleshooting
+
+### Static App Issues
+
+**Problem:** Calculator doesn't load or shows errors
+- **Solution:** Check browser console (F12) for JavaScript errors
+- Ensure all files are in the correct directory structure
+- Try a different browser if issues persist
+
+**Problem:** Configuration changes don't appear
+- **Solution:** Hard refresh (Ctrl+F5 or Cmd+Shift+R)
+- Verify `config/*.js` files match `config/*.json` files
+
+### CLI Issues
+
+**Problem:** `python: command not found`
+- **Solution:** Install Python 3.10+ or use `python3` instead of `python`
+
+**Problem:** `FileNotFoundError` for config files
+- **Solution:** Run CLI from project root directory, or use absolute paths
+
+**Problem:** Invalid region or edition error
+- **Solution:** Check `config/pricing.json` for available regions/editions
+- Use exact region identifier (e.g., `aws-us-east-1`, not `us-east-1`)
+
+### Calculation Issues
+
+**Problem:** Results seem too high/low
+- **Solution:** Verify k-values are calibrated for your workload
+- Check that pricing values match your Snowflake contract
+- Review [Calibration Guide](docs/calibration_guide.html) for k-value guidance
+
+**Problem:** Warehouse size selection seems wrong
+- **Solution:** Verify batch window hours matches your SLA requirements
+- Check concurrency value (should match actual parallel job count)
+
+## Documentation
+
+### Key Concepts Explained
+
+Understanding these concepts is essential for accurate cost estimates:
+
+- **[k-factor (Calibration Factor)](docs/calibration_guide.html#what-is-k-factor-and-why-do-we-need-it)**: Why performance differs between Db2 for z/OS and Snowflake, and how to calibrate k-values for your workloads
+- **[Warehouse Size Factors](docs/calibration_guide.html#understanding-warehouse-size-factors)**: How Snowflake warehouses scale (XS, S, M, L, XL, etc.) and the cost vs speed trade-off
+- **[Cloud Services Waiver](index.html#step-5-calculate-cloud-services-credits)**: The 10% waiver rule and what Cloud Services covers
+- **[Multi-Cluster Warehouses](docs/snowflake_architects_how_to_use.html#multi-cluster-warehouse)**: Horizontal scaling for high-concurrency workloads
+- **[Serverless Features](docs/snowflake_architects_how_to_use.html#serverless-features)**: Snowpipe, Search Optimization, and Tasks pricing models
+- **[Storage Types](docs/snowflake_architects_how_to_use.html#storage-types)**: Regular storage, Time Travel, and Fail-safe storage
+- **[Egress Routes](docs/snowflake_architects_how_to_use.html#egress-route)**: Data transfer pricing and cost optimization tips
+- **[Credits vs Dollars](index.html#step-8-calculate-compute-cost)**: How Snowflake's credit-based billing works
+
+### User Guides
+
+- **[Calibration Guide](docs/calibration_guide.html)**: Step-by-step guide to calibrating k-values for your workloads
+- **[Db2 DBA Guide](docs/db2_dba_how_to_use.html)**: Where to find Db2 for z/OS metrics (SMF records, catalog tables)
+- **[Snowflake Architect Guide](docs/snowflake_architects_how_to_use.html)**: Snowflake configuration details and where to find metrics
+- **[Calculation Logic](index.html#calculation-logic-tab)**: Detailed explanation of the 10-step calculation methodology
+
+### Quick Reference
+
+- **Calculation Formula**: See [Core model](#core-model) section above
+- **Configuration Files**: See [Edit these files](#edit-these-files-to-change-costs--rules) section above
+- **Example Calculations**: See [Calculation Logic tab](index.html#calculation-logic-tab) in the web app
+
+### External Resources
+
+- **[Snowflake Pricing Guide](https://www.snowflake.com/pricing/)**: Official Snowflake pricing documentation
+- **[Snowflake Documentation](https://docs.snowflake.com/)**: Complete Snowflake technical documentation
+- **[Snowflake Cost Management](https://docs.snowflake.com/en/user-guide/cost-understanding-overview)**: Understanding Snowflake costs and credits
+
+## Frequently Asked Questions
+
+**Q: Do I need a Snowflake account to use this tool?**  
+A: No. This tool works offline and doesn't require a Snowflake account. However, you'll need accurate pricing data from Snowflake for production estimates.
+
+**Q: How accurate are the estimates?**  
+A: Accuracy depends on proper calibration of k-values and current pricing data. With calibrated k-values and accurate pricing, estimates are typically within 10-15% of actual costs.
+
+**Q: Can I use this for other database migrations (Oracle, SQL Server, etc.)?**  
+A: No. This tool is specifically designed for Db2 for z/OS to Snowflake migrations. The k-factor calibration is based on Db2 for z/OS CPU metrics.
+
+**Q: How often should I update pricing?**  
+A: Snowflake pricing changes infrequently, but check annually or when renewing contracts. Always verify pricing with your Snowflake account representative.
+
+**Q: What if my workload doesn't match the predefined families?**  
+A: You can add custom workload families in `config/calibration.json`. Follow the [Calibration Guide](docs/calibration_guide.html) to determine appropriate k-values.
+
+**Q: Can I automate calculations?**  
+A: Yes! Use the CLI (`scripts/cli.py`) for automation. It can be integrated into scripts, CI/CD pipelines, or other tools.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support & Issues
+
+- **Found a bug?** Open an issue on [GitHub](https://github.com/JoshKCIT/db2_to_snowflake_cost_calculator/issues)
+- **Have a question?** Check the [Documentation](#documentation) section or open a discussion
+- **Need help with calibration?** See the [Calibration Guide](docs/calibration_guide.html)
+- **Want to contribute?** See [Contributing](#contributing) section below
 
 ## Author
 

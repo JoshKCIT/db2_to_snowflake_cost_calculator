@@ -13,10 +13,68 @@
 
     <section class="card">
       <h2>Overview</h2>
-      <p><strong>Goal:</strong> Derive <code>k</code> for each workload family, where:</p>
+      <p><strong>Goal:</strong> Derive <code>k</code> (the k-factor) for each workload family, where:</p>
       <pre>k = XS_seconds_on_Snowflake / Db2_for_zOS_CPU_seconds</pre>
       <p>(for the same workload)</p>
-      <p>The <strong>k</strong> value represents the conversion factor between Db2 for z/OS CPU seconds and Snowflake XS warehouse seconds. This calibration ensures accurate cost estimates for your specific workload characteristics.</p>
+      
+      <p>The <strong>k-factor</strong> (also called "k-value" or "calibration factor") represents how many Snowflake XS-equivalent seconds are needed to process the same work as 1 second of Db2 for z/OS CPU time.</p>
+      
+      <p><strong>In the calculation formula:</strong></p>
+      <pre>XS Hours = (Db2 CPU seconds/day × k) ÷ 3600</pre>
+      
+      <p>This calibration ensures accurate cost estimates by accounting for performance differences between your mainframe Db2 environment and Snowflake's cloud architecture. Without proper calibration, cost estimates can be significantly inaccurate—potentially off by 50% or more.</p>
+      
+      <p><strong>Default k-values</strong> (starting points—should be calibrated for your environment):</p>
+      <ul>
+        <li><strong>ELT Batch:</strong> k = 1.8 (transformation-heavy workloads)</li>
+        <li><strong>Reporting:</strong> k = 2.4 (query-heavy analytical workloads)</li>
+        <li><strong>CDC:</strong> k = 1.2 (simple incremental loads)</li>
+      </ul>
+      
+      <p><strong>Key Insight:</strong> The k-factor is not a universal constant—it's specific to your workload type, data patterns, and migration approach. That's why calibration is essential for accurate cost estimates.</p>
+    </section>
+
+    <section class="card" id="what-is-k-factor-and-why-do-we-need-it">
+      <h2>What is k-factor and Why Do We Need It?</h2>
+      
+      <p><strong>Simple Answer:</strong> k-factor is a calibration multiplier that accounts for performance differences between Db2 for z/OS and Snowflake when running the same workload.</p>
+      
+      <h3>Why k-factor ≠ 1.0</h3>
+      <p>You might expect that 1 second of Db2 CPU time equals 1 second of Snowflake compute time, but in practice, this is rarely true. The k-factor accounts for several real-world differences:</p>
+      
+      <ul>
+        <li><strong>Query Optimization Differences:</strong> Snowflake's optimizer may generate different execution plans than Db2, leading to more or less efficient query processing. Snowflake's cost-based optimizer handles columnar data differently than Db2's row-based optimizer.</li>
+        <li><strong>Data Model Differences:</strong> Db2 uses row-based storage while Snowflake uses columnar storage, which affects performance differently depending on query patterns. Columnar storage excels at analytical queries but may have overhead for row-by-row operations.</li>
+        <li><strong>Network Overhead:</strong> Cloud-based Snowflake has network latency between compute and storage that on-premise Db2 doesn't have. Data must traverse cloud networks, adding latency.</li>
+        <li><strong>Transformation Complexity:</strong> ELT patterns in Snowflake differ from traditional ETL patterns in Db2, affecting processing efficiency. Snowflake's architecture favors loading data first, then transforming, which can change performance characteristics.</li>
+        <li><strong>System Architecture:</strong> Different hardware (cloud vs mainframe), caching strategies, and resource allocation models affect how efficiently work is processed.</li>
+        <li><strong>Concurrency Models:</strong> Snowflake's multi-cluster architecture handles concurrent queries differently than Db2's single-system model.</li>
+      </ul>
+      
+      <h3>Real-World Example</h3>
+      <p>Consider a reporting query that takes 100 CPU seconds on Db2 for z/OS:</p>
+      <ul>
+        <li><strong>If k = 1.2:</strong> Snowflake needs 120 XS-equivalent seconds (20% slower due to query complexity or network overhead). This might occur for simple queries where Snowflake's columnar storage provides some benefit, but network overhead adds latency.</li>
+        <li><strong>If k = 2.4:</strong> Snowflake needs 240 XS-equivalent seconds (140% slower, common for complex analytical queries). This is typical for reporting workloads where Snowflake's optimizer processes complex aggregations differently than Db2.</li>
+        <li><strong>If k = 0.8:</strong> Snowflake needs 80 XS-equivalent seconds (20% faster, rare but possible for simple operations). This might occur for bulk load operations where Snowflake's columnar storage and parallel processing excel.</li>
+      </ul>
+      
+      <p><strong>Cost Impact Example:</strong> If you incorrectly assume k = 1.0 when your actual k = 2.4:</p>
+      <ul>
+        <li>Your estimate: 100 CPU seconds = 100 XS seconds = 0.0278 hours</li>
+        <li>Reality: 100 CPU seconds = 240 XS seconds = 0.0667 hours</li>
+        <li><strong>Error:</strong> Your cost estimate is 2.4× too low—a critical budgeting mistake!</li>
+      </ul>
+      
+      <h3>Why Different Workload Types Have Different k-values</h3>
+      <p>Different workload types interact differently with Snowflake's architecture:</p>
+      <ul>
+        <li><strong>CDC (k ≈ 1.2):</strong> Simple incremental loads benefit from Snowflake's efficient columnar storage and minimal transformation overhead. These workloads typically involve small, frequent inserts that align well with Snowflake's architecture.</li>
+        <li><strong>ELT Batch (k ≈ 1.8):</strong> Transformation-heavy workloads may have moderate overhead due to complex SQL transformations, joins, and aggregations. The ELT pattern (load then transform) works well in Snowflake but may require more compute than equivalent Db2 operations.</li>
+        <li><strong>Reporting (k ≈ 2.4):</strong> Complex analytical queries often require more compute due to Snowflake's query optimization approach and columnar processing. While Snowflake excels at analytics, the optimizer may choose different execution plans than Db2, leading to higher compute requirements for complex queries.</li>
+      </ul>
+      
+      <p><strong>Key Insight:</strong> The k-factor is not a universal constant—it's specific to your workload type, data patterns, and migration approach. That's why calibration is essential for accurate cost estimates. Even within the same workload family, different organizations may have different k-values based on their specific data characteristics and query patterns.</p>
     </section>
 
     <section class="card">
@@ -75,29 +133,110 @@
       </ul>
     </section>
 
+    <section class="card" id="understanding-warehouse-size-factors">
+      <h2>Understanding Warehouse Size Factors</h2>
+      <p>After calibrating k-factor, the calculator uses <strong>size factors</strong> to select the optimal warehouse size. Understanding size factors helps you understand why certain warehouse sizes are recommended.</p>
+      
+      <h3>What Are Size Factors?</h3>
+      <p>Snowflake warehouses scale in predictable multiples. Each warehouse size is a multiple of XS capacity:</p>
+      <ul>
+        <li><strong>XS:</strong> 1× (baseline)</li>
+        <li><strong>S:</strong> 2× faster than XS</li>
+        <li><strong>M:</strong> 4× faster than XS</li>
+        <li><strong>L:</strong> 8× faster than XS</li>
+        <li><strong>XL:</strong> 16× faster than XS</li>
+        <li><strong>2XL:</strong> 32× faster than XS</li>
+        <li><strong>3XL:</strong> 64× faster than XS</li>
+        <li><strong>4XL:</strong> 128× faster than XS</li>
+      </ul>
+      
+      <h3>Cost vs Speed Trade-off</h3>
+      <p><strong>Important:</strong> Larger warehouses complete work faster, but they cost more per hour:</p>
+      <ul>
+        <li>A 2× warehouse completes work in half the time, but costs 2× per hour</li>
+        <li>A 4× warehouse completes work in 1/4 the time, but costs 4× per hour</li>
+        <li><strong>Total cost is the same</strong> if you can use the full time window</li>
+      </ul>
+      
+      <p><strong>Example:</strong> If you need 8 XS-equivalent hours:</p>
+      <ul>
+        <li><strong>XS warehouse:</strong> 8 hours × 1.35 credits/hour = 10.8 credits</li>
+        <li><strong>M warehouse (4×):</strong> 2 hours × 5.4 credits/hour = 10.8 credits</li>
+        <li><strong>Same cost!</strong> But M warehouse completes in 2 hours vs 8 hours</li>
+      </ul>
+      
+      <h3>Why We Use "Smallest Size That Fits" Strategy</h3>
+      <p>The calculator selects the <strong>smallest warehouse size</strong> that can complete the workload within your batch window. This strategy:</p>
+      <ul>
+        <li><strong>Minimizes costs:</strong> Smaller warehouses cost less per hour</li>
+        <li><strong>Meets SLAs:</strong> Ensures work completes within your batch window</li>
+        <li><strong>Provides flexibility:</strong> Leaves room for unexpected delays or growth</li>
+        <li><strong>Optimizes resource usage:</strong> Avoids over-provisioning</li>
+      </ul>
+      
+      <p><strong>Exception:</strong> If you need work to complete faster than the batch window (e.g., for operational flexibility), you can manually select a larger warehouse size, but this increases costs.</p>
+      
+      <h3>How Size Factors Work in Calculations</h3>
+      <p>The calculation process:</p>
+      <ol>
+        <li>Convert Db2 CPU seconds to XS hours using k-factor</li>
+        <li>Account for concurrency (multiple jobs running simultaneously)</li>
+        <li>Try each warehouse size from smallest to largest</li>
+        <li>Calculate: <code>Warehouse Hours = (XS Hours × Concurrency) ÷ Size Factor</code></li>
+        <li>Select the smallest size where <code>Warehouse Hours ≤ Batch Window</code></li>
+      </ol>
+      
+      <p><strong>Example:</strong> 36 XS hours, 2 concurrent jobs, 4-hour window</p>
+      <ul>
+        <li>Total need: 36 × 2 = 72 XS-equivalent hours</li>
+        <li>Try XL (16×): 72 ÷ 16 = 4.5 hours (too long for 4h window)</li>
+        <li>Try 2XL (32×): 72 ÷ 32 = 2.25 hours ✅ (fits in 4h window)</li>
+        <li><strong>Result:</strong> Select 2XL warehouse</li>
+      </ul>
+    </section>
+
     <section class="card">
       <h2>Workload Families</h2>
-      <p>Maintain separate k values for each workload type:</p>
+      <p>Maintain separate k values for each workload type. Different workload types have different performance characteristics in Snowflake:</p>
+      
       <h3>ELT Batch</h3>
       <ul>
-        <li>Extract-Load-Transform batch jobs</li>
-        <li>Heavy transformations and aggregations</li>
-        <li>Typically has higher k values due to complex processing</li>
+        <li><strong>Definition:</strong> Extract-Load-Transform batch jobs</li>
+        <li><strong>Characteristics:</strong> Heavy transformations, aggregations, data quality checks</li>
+        <li><strong>Typical k-value:</strong> 1.8 (moderate overhead)</li>
+        <li><strong>Why this k-value:</strong> Transformation-heavy workloads benefit from Snowflake's columnar storage but may require more compute for complex SQL operations than equivalent Db2 operations</li>
+        <li><strong>When to use:</strong> Nightly ETL jobs, data warehouse loads, batch data processing</li>
       </ul>
 
       <h3>Reporting</h3>
       <ul>
-        <li>Query/reporting workloads</li>
-        <li>SELECT-heavy operations</li>
-        <li>Aggregations and analytics</li>
-        <li>May have higher k values if queries are complex</li>
+        <li><strong>Definition:</strong> Query/reporting workloads, analytical queries</li>
+        <li><strong>Characteristics:</strong> SELECT-heavy operations, aggregations, analytics, complex joins</li>
+        <li><strong>Typical k-value:</strong> 2.4 (higher overhead)</li>
+        <li><strong>Why this k-value:</strong> Complex analytical queries often require more compute due to Snowflake's query optimization approach. While Snowflake excels at analytics, the optimizer may choose different execution plans than Db2, leading to higher compute requirements</li>
+        <li><strong>When to use:</strong> Business intelligence queries, ad-hoc reporting, dashboard queries, analytical workloads</li>
       </ul>
 
       <h3>CDC (Change Data Capture)</h3>
       <ul>
-        <li>Incremental data synchronization</li>
-        <li>Small frequent loads</li>
-        <li>Typically has lower k values due to simpler operations</li>
+        <li><strong>Definition:</strong> Incremental data synchronization, real-time or near-real-time loads</li>
+        <li><strong>Characteristics:</strong> Small frequent loads, minimal transformations, simple inserts/updates</li>
+        <li><strong>Typical k-value:</strong> 1.2 (lower overhead)</li>
+        <li><strong>Why this k-value:</strong> Simple incremental loads benefit from Snowflake's efficient columnar storage and minimal transformation overhead. These workloads typically involve small, frequent inserts that align well with Snowflake's architecture</li>
+        <li><strong>When to use:</strong> Real-time replication, incremental sync, change data capture pipelines</li>
+      </ul>
+      
+      <p><strong>Important:</strong> If your workload mixes multiple types (e.g., both ELT and reporting), consider splitting into separate workload families or using the family that represents the majority of compute time.</p>
+    </section>
+
+    <section class="card">
+      <h2>See Also</h2>
+      <p>Related documentation that helps you understand the full calculation process:</p>
+      <ul>
+        <li><strong><a href="../index.html#calculation-logic-tab">Calculation Logic</a>:</strong> Detailed explanation of how k-factor is used in the 10-step calculation process</li>
+        <li><strong><a href="./db2_dba_how_to_use.html">Db2 DBA Guide</a>:</strong> Where to find Db2 for z/OS CPU seconds from SMF records</li>
+        <li><strong><a href="./snowflake_architects_how_to_use.html">Snowflake Architect Guide</a>:</strong> Understanding warehouse types, size factors, and Snowflake configuration</li>
+        <li><strong><a href="../README.md#documentation">Documentation Index</a>:</strong> Complete list of all documentation and key concepts</li>
       </ul>
     </section>
 

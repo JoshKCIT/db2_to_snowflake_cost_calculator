@@ -2,18 +2,44 @@
  * Copyright (c) 2025 JoshKCIT
  * 
  * Main application logic for Snowflake Budget Calculator
+ * 
+ * This file handles the user interface logic for the calculator web application.
+ * It manages:
+ * - DOM element references and initialization
+ * - Configuration loading and refresh (from config-editor.js)
+ * - User input collection and validation
+ * - Calculation triggering and result display
+ * - Export functionality (JSON/CSV)
+ * - Dynamic UI updates (region filtering, cluster count visibility)
+ * 
+ * This script runs in the browser and interacts with:
+ * - index.html: The HTML structure and UI elements
+ * - lib/calc.js: The core calculation engine (window.Calc.compute())
+ * - js/config-editor.js: Configuration management (window.CONFIG_*)
  */
 (function(){
   "use strict";
 
-  // Use configs from window (loaded by config-editor.js from localStorage or defaults)
-  // These are initialized by config-editor.js before this script runs
-  const regionSel = document.getElementById("region");
-  const familySel = document.getElementById("family");
-  const cloudProviderSel = document.getElementById("cloud_provider");
-  const outEl = document.getElementById("out");
+  // ============================================================================
+  // DOM ELEMENT REFERENCES
+  // ============================================================================
+  // Get references to key HTML elements that we'll interact with
+  // These are initialized when the page loads
+  
+  const regionSel = document.getElementById("region");           // Region dropdown
+  const familySel = document.getElementById("family");           // Workload family dropdown
+  const cloudProviderSel = document.getElementById("cloud_provider"); // Cloud provider dropdown (AWS/Azure/GCP)
+  const outEl = document.getElementById("out");                  // Raw JSON output display element
 
-  // Make defaultPricing, defaultRules, defaultCalib accessible for updates
+  // ============================================================================
+  // CONFIGURATION MANAGEMENT
+  // ============================================================================
+  // Configuration is loaded from window.CONFIG_* variables set by config-editor.js
+  // These variables are populated from localStorage (if user has custom configs)
+  // or from default config files (config/pricing.js, config/rules.js, config/calibration.js)
+  // 
+  // We maintain local copies that can be refreshed when configs change
+  
   let defaultPricing = window.CONFIG_PRICING || {
     regions: {
       "aws-us-east-1": {
@@ -46,8 +72,17 @@
     defaultFamily: "elt_batch"
   };
 
-  // Function to refresh configs from window (called when configs are updated)
+  /**
+   * Refreshes configuration data from window.CONFIG_* variables.
+   * 
+   * This function is called when the user updates configuration in the Configuration tab.
+   * It updates local config copies and refreshes dropdown menus to reflect changes.
+   * 
+   * Why this is needed: The Configuration Editor (config-editor.js) updates window.CONFIG_*
+   * variables when users save changes. This function syncs those changes to the calculator.
+   */
   function refreshConfigs() {
+    // Update local config copies from global window variables
     if (window.CONFIG_PRICING) {
       defaultPricing = window.CONFIG_PRICING;
     }
@@ -57,7 +92,8 @@
     if (window.CONFIG_CALIBRATION) {
       defaultCalib = window.CONFIG_CALIBRATION;
     }
-    // Refresh dropdowns
+    
+    // Refresh dropdown menus to show updated options
     populateRegions(cloudProviderSel.value);
     familySel.innerHTML = '';
     for (const f of Object.keys(defaultCalib.workloadFamilies)) {
@@ -67,7 +103,9 @@
     }
   }
 
-  // Listen for config updates - check periodically and on focus
+  // Listen for config updates - check periodically and on window focus
+  // This allows the calculator to pick up changes made in the Configuration tab
+  // without requiring a page refresh
   setInterval(() => {
     if (window.CONFIG_PRICING && window.CONFIG_PRICING !== defaultPricing) {
       refreshConfigs();
@@ -75,72 +113,125 @@
   }, 500);
   window.addEventListener('focus', refreshConfigs);
 
-  // Function to populate regions based on cloud provider
+  /**
+   * Populates the region dropdown based on selected cloud provider.
+   * 
+   * Regions are filtered to show only those matching the cloud provider prefix
+   * (e.g., "aws-" for AWS regions). If no regions match, all regions are shown as fallback.
+   * Regions are sorted alphabetically by display name for better user experience.
+   * 
+   * @param {string} cloudProvider - Cloud provider code ("aws", "azure", or "gcp")
+   */
   function populateRegions(cloudProvider) {
     regionSel.innerHTML = ""; // Clear existing options
+    
+    // Get all available regions from pricing config
     const regions = Object.keys(defaultPricing.regions);
+    
+    // Filter regions to match cloud provider prefix (e.g., "aws-us-east-1" for AWS)
     const filteredRegions = regions.filter(r => r.startsWith(cloudProvider + "-"));
     
     if (filteredRegions.length === 0) {
-      // Fallback: show all regions if none match
+      // Fallback: show all regions if none match the provider
+      // This handles edge cases where region naming doesn't follow the pattern
       filteredRegions.push(...regions);
     }
     
     // Sort regions by display name for better UX
+    // Display names are user-friendly (e.g., "US East (N. Virginia)") vs keys ("aws-us-east-1")
     filteredRegions.sort((a, b) => {
       const nameA = defaultPricing.regions[a]?.displayName || a;
       const nameB = defaultPricing.regions[b]?.displayName || b;
       return nameA.localeCompare(nameB);
     });
     
+    // Create option elements for each region
     for (const r of filteredRegions) {
       const opt = document.createElement("option");
       opt.value = r;
-      // Use displayName if available, otherwise use the key
+      // Use displayName if available (user-friendly), otherwise use the key (technical)
       opt.textContent = defaultPricing.regions[r]?.displayName || r;
       regionSel.appendChild(opt);
     }
   }
 
-  // Initial population
+  // Initial population when page loads
   populateRegions(cloudProviderSel.value);
   
-  // Update regions when cloud provider changes
+  // Update regions dropdown when cloud provider selection changes
+  // This provides dynamic filtering: selecting AWS shows only AWS regions, etc.
   cloudProviderSel.addEventListener("change", () => {
     populateRegions(cloudProviderSel.value);
   });
 
-  // Show/hide cluster count field based on warehouse type
+  // ============================================================================
+  // WAREHOUSE TYPE AND CLUSTER COUNT MANAGEMENT
+  // ============================================================================
+  // Multi-cluster warehouses require a cluster count input, but standard and
+  // serverless warehouses don't. We show/hide the cluster count field dynamically.
+  
   const warehouseTypeSel = document.getElementById("warehouse_type");
   const clusterCountLabel = document.getElementById("cluster_count_label");
   const clusterCountInput = document.getElementById("cluster_count");
   
+  /**
+   * Shows or hides the cluster count input field based on warehouse type.
+   * 
+   * Only multi-cluster warehouses need cluster count. For standard and serverless
+   * warehouses, we hide the field and reset the value to 1 (default).
+   */
   function updateClusterCountVisibility() {
     if (warehouseTypeSel.value === "multi_cluster") {
+      // Multi-cluster warehouses: show cluster count field
       clusterCountLabel.style.display = "block";
     } else {
+      // Standard/Serverless warehouses: hide cluster count field
       clusterCountLabel.style.display = "none";
       clusterCountInput.value = 1; // Reset to default when hidden
     }
   }
   
+  // Update visibility when warehouse type changes
   warehouseTypeSel.addEventListener("change", updateClusterCountVisibility);
-  updateClusterCountVisibility(); // Initial call
+  updateClusterCountVisibility(); // Initial call on page load
 
+  // ============================================================================
+  // WORKLOAD FAMILY DROPDOWN INITIALIZATION
+  // ============================================================================
+  // Populate workload family dropdown with available families from calibration config
+  // Workload families determine which k-factor is used in calculations
+  
   for (const f of Object.keys(defaultCalib.workloadFamilies)) {
     const opt = document.createElement("option");
     opt.value = f; opt.textContent = f;
     familySel.appendChild(opt);
   }
 
+  // ============================================================================
+  // CALCULATION BUTTON EVENT HANDLER
+  // ============================================================================
+  // This is the main calculation trigger. When user clicks "Calculate",
+  // we collect all inputs, validate them, run the calculation, and display results.
+  
   document.getElementById("calc_btn").addEventListener("click", () => {
-    // Validate region exists before calculation
+    // ============================================================================
+    // STEP 1: VALIDATE INPUTS
+    // ============================================================================
+    // Ensure region exists in pricing config before attempting calculation
+    // This prevents runtime errors and provides user-friendly error messages
+    
     const region = document.getElementById("region").value;
     if (!defaultPricing.regions[region]) {
       alert(`Error: Region '${region}' not found in pricing config. Please select a valid region.`);
       return;
     }
 
+    // ============================================================================
+    // STEP 2: COLLECT USER INPUTS
+    // ============================================================================
+    // Gather all input values from the HTML form elements
+    // These values are converted to numbers where needed for calculations
+    
     const inp = {
       db2CpuSecondsPerDay: Number(document.getElementById("db2_cpu").value),
       batchWindowHours: Number(document.getElementById("window_h").value),
@@ -163,16 +254,28 @@
       clusterCount: Number(document.getElementById("cluster_count").value) || 1
     };
 
+    // ============================================================================
+    // STEP 3: RUN CALCULATION
+    // ============================================================================
+    // Call the core calculation engine (lib/calc.js) with collected inputs
+    // The calculation engine performs all 10 calculation steps and returns results
+    
     let res;
     try {
       res = window.Calc.compute(inp, defaultPricing, defaultRules, defaultCalib);
     } catch (error) {
+      // Display user-friendly error message if calculation fails
+      // Common causes: invalid config, missing data, calculation errors
       alert(`Calculation Error: ${error.message}`);
       console.error("Calculation error:", error);
       return;
     }
     
-    // Get intermediate calculation values for logic section
+    // ============================================================================
+    // STEP 4: PREPARE INTERMEDIATE VALUES FOR DISPLAY
+    // ============================================================================
+    // Extract intermediate calculation values to populate the "Calculation Logic" section
+    // This shows users step-by-step how the results were calculated
     const k = defaultCalib.workloadFamilies[inp.family]?.k_xs_seconds_per_db2_cpu_second 
       ?? defaultCalib.workloadFamilies[defaultCalib.defaultFamily].k_xs_seconds_per_db2_cpu_second;
     const xsHours = res.daily.xsHours;
@@ -207,14 +310,22 @@
     }
     const egressRate = egressRates[egressRouteKey] || egressRates[inp.egressRoute] || 0;
     
-    // Populate logic steps
+    // ============================================================================
+    // STEP 5: POPULATE CALCULATION LOGIC DISPLAY
+    // ============================================================================
+    // Update the "Calculation Logic" section with step-by-step breakdown
+    // This helps users understand how each result was calculated
+    
+    // Step 1: Convert Db2 CPU seconds to XS hours using k-factor
     document.getElementById("logic-step1").innerHTML = 
       `<strong>${inp.db2CpuSecondsPerDay.toLocaleString()}</strong> Db2 for z/OS CPU seconds/day × <strong>${k}</strong> (${inp.family} factor) ÷ 3600 = <strong>${xsHours.toFixed(2)}</strong> XS hours`;
     
+    // Step 2: Account for concurrent workload
     document.getElementById("logic-step2").innerHTML = 
       `<strong>${xsHours.toFixed(2)}</strong> XS hours × max(1, <strong>${inp.concurrency}</strong> concurrent jobs) = <strong>${need.toFixed(2)}</strong> XS-equivalent hours needed`;
     
     // Step 3: Warehouse size selection (with multi-cluster info)
+    // Shows which warehouse size was selected and why (fits within batch window)
     let step3Text = `Size <strong>${res.selection.size}</strong> selected (${sizeFactor}× faster than XS) ⟹ <strong>${need.toFixed(2)}</strong> ÷ ${sizeFactor} = <strong>${(need / sizeFactor).toFixed(2)}</strong> hours`;
     if (inp.warehouseType === "multi_cluster") {
       step3Text += ` × <strong>${inp.clusterCount}</strong> clusters = <strong>${whHoursDay.toFixed(2)}</strong> total warehouse hours`;
@@ -224,13 +335,16 @@
     step3Text += ` (fits in ${inp.batchWindowHours}h window)`;
     document.getElementById("logic-step3").innerHTML = step3Text;
     
+    // Step 4: Calculate warehouse credits per day
     document.getElementById("logic-step4").innerHTML = 
       `<strong>${whHoursDay.toFixed(2)}</strong> warehouse hours × <strong>${creditsPerHour}</strong> credits/hour (${res.selection.size}) = <strong>${whCreditsDay.toFixed(2)}</strong> warehouse credits/day`;
     
+    // Step 5: Calculate Cloud Services credits (with 10% waiver rule)
     document.getElementById("logic-step5").innerHTML = 
       `min(${(waiverPct * 100).toFixed(0)}% of ${whCreditsDay.toFixed(2)} = <strong>${csTenPct.toFixed(2)}</strong>, cap of ${csCap.toFixed(2)}) = <strong>${csCreditsDay.toFixed(2)}</strong> cloud services credits/day`;
     
-    // Step 6: Serverless breakdown
+    // Step 6: Serverless credits breakdown
+    // Shows breakdown of Snowpipe, Search Optimization, and Tasks credits
     const isBCVPS = inp.edition === "business_critical" || inp.edition === "vps";
     let step6Parts = [];
     
@@ -277,12 +391,15 @@
         `No serverless features configured = <strong>${serverlessCreditsDay.toFixed(2)}</strong> serverless credits/day`;
     }
     
+    // Step 7: Scale to monthly credits based on execution frequency
     document.getElementById("logic-step7").innerHTML = 
       `(${whCreditsDay.toFixed(2)} + ${csCreditsDay.toFixed(2)} + ${serverlessCreditsDay.toFixed(2)}) × <strong>${inp.frequencyPerMonth}</strong> runs/month = <strong>${totalMonthlyCredits.toFixed(2)}</strong> total credits/month`;
     
+    // Step 8: Convert credits to dollars using region/edition pricing
     document.getElementById("logic-step8").innerHTML = 
       `<strong>${totalMonthlyCredits.toFixed(2)}</strong> credits × <strong>$${pricePerCredit.toFixed(2)}</strong>/credit (${inp.region}, ${inp.edition}) = <strong>$${res.monthly.dollarsCompute.toFixed(2)}</strong>`;
     
+    // Step 9: Calculate storage costs (regular + Time Travel + Fail-safe)
     const storageBreakdown = [];
     if (inp.uncompressedTBAtRest > 0) {
       storageBreakdown.push(`${inp.uncompressedTBAtRest} TB regular`);
@@ -298,13 +415,19 @@
     document.getElementById("logic-step9").innerHTML = 
       `<strong>${totalStorageTB.toFixed(1)}</strong> TB total storage${storageDesc} × <strong>$${storageRate.toFixed(2)}</strong>/TB/month = <strong>$${res.monthly.dollarsStorage.toFixed(2)}</strong>`;
     
+    // Step 10: Calculate data transfer (egress) costs
     document.getElementById("logic-step10").innerHTML = 
       `<strong>${inp.egressTB}</strong> TB egress × <strong>$${egressRate.toFixed(2)}</strong>/TB (${inp.egressRoute}) = <strong>$${res.monthly.dollarsTransfer.toFixed(2)}</strong>`;
     
+    // Step 11: Grand total (sum of all costs)
     document.getElementById("logic-step11").innerHTML = 
       `$${res.monthly.dollarsCompute.toFixed(2)} (compute) + $${res.monthly.dollarsStorage.toFixed(2)} (storage) + $${res.monthly.dollarsTransfer.toFixed(2)} (transfer) = <strong>$${res.monthly.grandTotal.toFixed(2)}</strong>`;
     
-    // Populate the structured results
+    // ============================================================================
+    // STEP 6: POPULATE RESULTS DISPLAY
+    // ============================================================================
+    // Update the "Results" section with calculated values
+    // This shows users the final cost breakdown and warehouse recommendations
     document.getElementById("result-size").textContent = res.selection.size;
     document.getElementById("result-wh-hours").textContent = res.selection.whHoursDay.toFixed(2);
     document.getElementById("result-wh-credits").textContent = res.daily.whCreditsDay.toFixed(2);
@@ -328,17 +451,32 @@
     document.getElementById("result-grand-total").textContent = "$" + res.monthly.grandTotal.toFixed(2);
     document.getElementById("result-grand-total-year").textContent = "$" + (res.monthly.grandTotal * 12).toFixed(2);
     
-    // Still keep the raw JSON for export functionality
+    // Store raw JSON for export functionality (JSON/CSV export buttons)
     outEl.textContent = JSON.stringify(res, null, 2);
     
-    // Show the logic and results sections
+    // Show the logic and results sections (they're hidden by default)
     document.getElementById("logic").style.display = "block";
     document.getElementById("results").style.display = "block";
     
-    // Scroll to logic section
+    // Scroll to logic section so users can see the calculation breakdown
     document.getElementById("logic").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
+  // ============================================================================
+  // EXPORT FUNCTIONALITY
+  // ============================================================================
+  // Functions to export calculation results as JSON or CSV files
+  
+  /**
+   * Downloads a file with the given name, content, and MIME type.
+   * 
+   * This is a utility function used by JSON and CSV export buttons.
+   * It creates a temporary download link, triggers it, then cleans up.
+   * 
+   * @param {string} name - Filename for the download
+   * @param {string} text - File content (text)
+   * @param {string} mime - MIME type (e.g., "application/json", "text/csv")
+   */
   function download(name, text, mime) {
     const blob = new Blob([text], {type: mime});
     const url = URL.createObjectURL(blob);
@@ -346,18 +484,29 @@
     URL.revokeObjectURL(url);
   }
 
+  // JSON Export Button Handler
+  // Exports the complete calculation result as a JSON file
+  // Useful for saving results, sharing with team, or importing into other tools
   document.getElementById("export_json").addEventListener("click", () => {
-    if (!outEl.textContent) return;
+    if (!outEl.textContent) return; // No calculation results available
     download('result.json', outEl.textContent, 'application/json');
   });
 
+  // CSV Export Button Handler
+  // Exports key calculation results as a CSV file
+  // Useful for importing into Excel, Google Sheets, or other spreadsheet tools
   document.getElementById("export_csv").addEventListener("click", () => {
     if (!outEl.textContent) {
       alert("No calculation results available. Please run a calculation first.");
       return;
     }
     try {
+      // Parse the JSON result object
       const obj = JSON.parse(outEl.textContent);
+      
+      // Create CSV rows with key calculation results
+      // Format: [["column_name", value], ...]
+      // This creates a simple key-value CSV that's easy to import into spreadsheets
       const rows = [
         ["size", obj.selection.size],
         ["whHoursDay", obj.selection.whHoursDay],
@@ -370,9 +519,12 @@
         ["dollarsTransfer", obj.monthly.dollarsTransfer],
         ["grandTotal", obj.monthly.grandTotal]
       ];
+      
+      // Convert rows to CSV format: "key,value\nkey,value\n..."
       const csv = rows.map(r=>r.join(",")).join("\n");
       download('result.csv', csv, 'text/csv');
     } catch (error) {
+      // Handle errors gracefully (e.g., invalid JSON, missing data)
       alert(`Error exporting CSV: ${error.message}`);
       console.error("CSV export error:", error);
     }

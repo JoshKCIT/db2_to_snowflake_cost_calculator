@@ -51,16 +51,29 @@
       </ul>
       <p><strong>Options:</strong></p>
       <ul>
-        <li><strong>Standard:</strong> Core features, lowest price per credit</li>
-        <li><strong>Enterprise:</strong> Multi-cluster warehouses, materialized views, column-level security</li>
-        <li><strong>Business Critical:</strong> HIPAA/PCI compliance, enhanced security, data encryption everywhere, customer-managed keys</li>
+        <li><strong>Standard:</strong> Core features, lowest price per credit (~$2/credit)</li>
+        <li><strong>Enterprise:</strong> Multi-cluster warehouses, materialized views, column-level security (~$3/credit)</li>
+        <li><strong>Business Critical:</strong> HIPAA/PCI compliance, enhanced security, data encryption everywhere, customer-managed keys (~$4/credit)</li>
+        <li><strong>VPS (Virtual Private Snowflake):</strong> Dedicated infrastructure, maximum isolation, compliance certifications (~$6/credit)</li>
       </ul>
+      
+      <p><strong>Why pricing varies by edition:</strong> Higher editions don't provide more compute performance—they provide additional features and capabilities:</p>
+      <ul>
+        <li><strong>Standard:</strong> Basic Snowflake features, suitable for most workloads. Includes standard security, time travel (1 day), and core functionality.</li>
+        <li><strong>Enterprise:</strong> Adds advanced security (encryption, key management), extended time travel (up to 90 days), materialized views, multi-cluster warehouses, and more. Required for auto-scaling warehouses.</li>
+        <li><strong>Business Critical:</strong> Adds enhanced security (HIPAA, PCI-DSS compliance), private connectivity options (PrivateLink, VPC peering), customer-managed encryption keys, and additional isolation. Required for regulated industries.</li>
+        <li><strong>VPS:</strong> Dedicated infrastructure, maximum isolation, compliance certifications (SOC 2, ISO 27001, etc.), and dedicated support. Highest level of security and compliance.</li>
+      </ul>
+      
+      <p><strong>Key point:</strong> All editions have the same compute performance for the same warehouse size. Edition pricing reflects features and compliance capabilities, not performance.</p>
+      
       <p><strong>Tips:</strong></p>
       <ul>
         <li>Standard is sufficient for most workloads without strict compliance requirements</li>
-        <li>Enterprise enables auto-scaling for concurrent user workloads</li>
+        <li>Enterprise enables auto-scaling (multi-cluster) for concurrent user workloads</li>
         <li>Business Critical required for regulated industries (healthcare, finance)</li>
-        <li>Credit pricing increases: Standard &lt; Enterprise (~1.5x) &lt; Business Critical (~2x)</li>
+        <li>VPS required for maximum isolation and dedicated infrastructure needs</li>
+        <li>Credit pricing increases: Standard ($2) &lt; Enterprise ($3) &lt; Business Critical ($4) &lt; VPS ($6)</li>
       </ul>
 
       <h3>3. Egress TB/month</h3>
@@ -97,14 +110,28 @@ WHERE TRANSFER_TYPE = 'COPY_OUT'
         <li>Use <code>SELECT</code> carefully; large result sets count as egress</li>
       </ul>
 
-      <h3>4. Egress route</h3>
-      <p><strong>What it is:</strong> The network path for data leaving Snowflake, which affects transfer pricing.</p>
+      <h3 id="egress-route">4. Egress route</h3>
+      <p><strong>What it is:</strong> The network path for data leaving Snowflake, which affects transfer pricing. Snowflake charges for data egress (leaving the platform), not ingress (entering the platform).</p>
       <p><strong>Options:</strong></p>
       <ul>
-        <li><strong>intraRegion:</strong> Same region transfers (e.g., Snowflake in us-east-1 → S3 in us-east-1)—typically free or lowest cost</li>
-        <li><strong>interRegion:</strong> Cross-region transfers within same cloud (e.g., us-east-1 → us-west-2)—moderate cost</li>
-        <li><strong>internet:</strong> Transfers to different cloud providers or on-premises—highest cost</li>
+        <li><strong>intraRegion:</strong> Same region transfers (e.g., Snowflake in us-east-1 → S3 in us-east-1)—FREE ($0/TB)</li>
+        <li><strong>interRegion:</strong> Cross-region transfers within same cloud (e.g., us-east-1 → us-west-2)—moderate cost (~$20/TB)</li>
+        <li><strong>crossCloud:</strong> Transfers between different cloud providers (e.g., AWS → Azure)—high cost (~$90/TB)</li>
+        <li><strong>internet:</strong> Transfers to public internet or on-premises—high cost (~$90/TB)</li>
+        <li><strong>accountTransfer:</strong> Transfers between Snowflake accounts—moderate cost (~$20/TB)</li>
       </ul>
+      
+      <p><strong>Why intra-region is free:</strong> Cloud providers don't charge for data transfer within the same region because it uses their internal network. Snowflake passes this cost structure through to customers.</p>
+      
+      <p><strong>When to use each route:</strong></p>
+      <ul>
+        <li><strong>Intra-Region:</strong> When your destination (S3, Azure Blob, GCS, EC2, etc.) is in the same cloud region as Snowflake. <strong>Always prefer this when possible.</strong></li>
+        <li><strong>Inter-Region:</strong> When your destination is in a different region but same cloud provider (e.g., Snowflake in AWS us-east-1 → S3 in AWS us-west-2)</li>
+        <li><strong>Cross-Cloud:</strong> When your destination is in a different cloud provider (e.g., Snowflake in AWS → Azure Blob Storage)</li>
+        <li><strong>Internet:</strong> When downloading data to your local machine, on-premises systems, or any non-cloud destination</li>
+        <li><strong>Account Transfer:</strong> When replicating data between different Snowflake accounts (e.g., production → development)</li>
+      </ul>
+      
       <p><strong>Where to find it:</strong></p>
       <ul>
         <li><strong>External Stages:</strong> Check stage definitions for cloud provider and region</li>
@@ -112,16 +139,51 @@ WHERE TRANSFER_TYPE = 'COPY_OUT'
 DESC STAGE my_external_stage;</pre>
         <li><strong>Integration Endpoints:</strong> Review where your ETL tools, BI platforms, and applications are hosted</li>
         <li><strong>Architecture Diagrams:</strong> Document showing Snowflake region vs. target system regions</li>
+        <li><strong>Data Transfer History:</strong> Check ACCOUNT_USAGE.DATA_TRANSFER_HISTORY to see actual transfer routes</li>
       </ul>
-      <p><strong>Tips:</strong></p>
+      
+      <p><strong>Cost optimization tips:</strong></p>
       <ul>
-        <li>Always prefer intra-region transfers when possible (can be 10-100x cheaper)</li>
+        <li>Always prefer intra-region transfers when possible (can be 10-100x cheaper, often free)</li>
         <li>Use external stages in the same region as Snowflake</li>
         <li>For multi-cloud, consider Snowflake replication vs. cross-cloud transfers</li>
+        <li>Keep BI tools and ETL systems in the same region as Snowflake</li>
+        <li>Use Snowflake's COPY INTO command with external stages for efficient intra-region transfers</li>
+      </ul>
+      
+      <p><strong>Example cost impact:</strong> 10 TB/month egress</p>
+      <ul>
+        <li>Intra-region: $0/month</li>
+        <li>Inter-region: $200/month</li>
+        <li>Internet/Cross-cloud: $900/month</li>
+        <li><strong>Savings:</strong> Keeping data in the same region saves $900/month vs internet egress!</li>
       </ul>
 
-      <h3>5. Snowpipe files/day</h3>
+      <h3 id="serverless-features">5. Snowpipe files/day</h3>
       <p><strong>What it is:</strong> Number of files processed daily by Snowpipe for continuous/micro-batch data ingestion.</p>
+      
+      <p><strong>What is Snowpipe:</strong> Snowpipe is Snowflake's continuous data ingestion service. It automatically loads data from cloud storage (S3, Azure Blob, GCS) as soon as files arrive, without requiring manual COPY commands or warehouse management.</p>
+      
+      <p><strong>Pricing differences by edition:</strong> Snowpipe pricing differs significantly between editions:</p>
+      <ul>
+        <li><strong>Standard/Enterprise:</strong> Pay per 1000 files processed + compute multiplier for processing time
+          <ul>
+            <li>Typical rate: ~0.06 credits per 1000 files</li>
+            <li>Compute multiplier: ~1.25× for processing hours</li>
+            <li>Formula: Credits = (Files ÷ 1000 × Rate) + (Compute Hours × Multiplier)</li>
+          </ul>
+        </li>
+        <li><strong>Business-Critical/VPS:</strong> Pay per GB of data processed
+          <ul>
+            <li>Typical rate: ~0.0037 credits per GB</li>
+            <li>Formula: Credits = GB processed × Rate</li>
+            <li>More cost-effective for high-volume, low-file-count scenarios</li>
+          </ul>
+        </li>
+      </ul>
+      
+      <p><strong>Why pricing differs:</strong> Business-Critical and VPS editions use a different Snowpipe architecture optimized for high-volume, continuous ingestion. This architecture has different cost characteristics than Standard/Enterprise editions.</p>
+      
       <p><strong>Where to find it:</strong></p>
       <ul>
         <li><strong>Snowpipe History:</strong></li>
@@ -137,29 +199,47 @@ GROUP BY PIPE_NAME;</pre>
         <li><strong>Cloud Storage Logs:</strong> S3/Azure/GCS event notifications counts</li>
         <li><strong>CDC Tools:</strong> File generation rate from Debezium, Kafka Connect, etc.</li>
       </ul>
+      
       <p><strong>Cost considerations:</strong></p>
       <ul>
-        <li>Snowpipe charges per compute-second, not per file, but file count indicates usage pattern</li>
-        <li>Many small files are less efficient than fewer large files</li>
-        <li>Typical cost: ~0.06 credits per 1,000 files (varies by file size)</li>
+        <li><strong>Standard/Enterprise:</strong> File count matters—many small files cost more than fewer large files</li>
+        <li><strong>Business-Critical/VPS:</strong> Data volume matters—file count doesn't directly affect cost</li>
+        <li>Many small files are less efficient than fewer large files (for Standard/Enterprise)</li>
+        <li>Typical cost (Standard/Enterprise): ~0.06 credits per 1,000 files + compute overhead</li>
+        <li>Typical cost (Business-Critical/VPS): ~0.0037 credits per GB</li>
       </ul>
+      
       <p><strong>Tips:</strong></p>
       <ul>
-        <li>Batch micro-files when possible (aim for 100-250 MB compressed files)</li>
+        <li>Batch micro-files when possible (aim for 100-250 MB compressed files for Standard/Enterprise)</li>
         <li>For new deployments, estimate based on CDC frequency and data source change rate</li>
         <li>Use 0 if doing batch loads only (no continuous ingestion)</li>
+        <li>If processing many small files on Standard/Enterprise, consider batching or upgrading to Business-Critical</li>
       </ul>
 
-      <h3>6. Search Optimization TB (monthly)</h3>
-      <p><strong>What it is:</strong> Total terabytes of tables with Search Optimization Service enabled, measured monthly.</p>
+      <h3>6. Search Optimization compute hours/day</h3>
+      <p><strong>What it is:</strong> Compute hours consumed daily by Search Optimization Service for maintaining optimized data structures.</p>
+      
+      <p><strong>What is Search Optimization:</strong> Search Optimization Service accelerates point lookups and filtering on large tables by maintaining optimized data structures (like indexes). It's useful for selective queries on very large tables.</p>
+      
+      <p><strong>Pricing model:</strong> Search Optimization uses multipliers for both compute and Cloud Services:</p>
+      <ul>
+        <li><strong>Compute multiplier:</strong> 2× (2 credits per compute hour)</li>
+        <li><strong>Cloud Services multiplier:</strong> 1× (1 credit per compute hour)</li>
+        <li><strong>Total:</strong> 1 hour of Search Optimization compute = 3 credits (2 compute + 1 Cloud Services)</li>
+      </ul>
+      
+      <p><strong>Why multipliers:</strong> Search Optimization requires both compute resources (to maintain indexes and process queries) and Cloud Services (for metadata operations and coordination). The multipliers account for both components.</p>
+      
       <p><strong>Where to find it:</strong></p>
       <ul>
         <li><strong>Search Optimization Usage:</strong></li>
         <pre>SELECT 
   TABLE_NAME,
-  SUM(CREDITS_USED) AS MONTHLY_CREDITS
+  SUM(CREDITS_USED) AS MONTHLY_CREDITS,
+  SUM(CREDITS_USED) / 3.0 AS COMPUTE_HOURS  -- Divide by 3 to get compute hours
 FROM SNOWFLAKE.ACCOUNT_USAGE.SEARCH_OPTIMIZATION_HISTORY
-WHERE START_TIME >= DATEADD(month, -1, CURRENT_DATE())
+WHERE START_TIME >= DATEADD(day, -1, CURRENT_DATE())
 GROUP BY TABLE_NAME;</pre>
         <li><strong>Table Size with Search Optimization:</strong></li>
         <pre>SELECT 
@@ -169,26 +249,47 @@ FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
 WHERE SEARCH_OPTIMIZATION_ENABLED = TRUE;</pre>
         <li><strong>Admin Console:</strong> Resource Monitors → Search Optimization tab</li>
       </ul>
+      
       <p><strong>When to use Search Optimization:</strong></p>
       <ul>
         <li>Point lookup queries on large tables (selective WHERE clauses)</li>
         <li>Substring matching and LIKE queries on text fields</li>
         <li>Tables &gt; 1 TB with selective filter queries</li>
+        <li>Queries that benefit from index-like structures</li>
       </ul>
-      <p><strong>Cost:</strong></p>
+      
+      <p><strong>Cost example:</strong> If Search Optimization runs 2 hours/day:</p>
       <ul>
-        <li>Maintenance cost: ~0.015 credits per TB per day (~0.45 credits per TB per month)</li>
-        <li>Build cost: One-time charge when enabling</li>
+        <li>Compute credits: 2 hours × 2 multiplier = 4 credits</li>
+        <li>Cloud Services credits: 2 hours × 1 multiplier = 2 credits</li>
+        <li>Total: 6 credits/day</li>
+        <li>Monthly (30 days): 180 credits</li>
       </ul>
+      
       <p><strong>Tips:</strong></p>
       <ul>
         <li>Use 0 for new deployments unless you know you need it</li>
         <li>Enable only on large tables with selective query patterns</li>
         <li>Not needed for full table scans or well-clustered data</li>
+        <li>Monitor actual usage before enabling on many tables</li>
       </ul>
 
       <h3>7. Tasks hours/day</h3>
-      <p><strong>What it is:</strong> Total compute hours consumed by Snowflake Tasks (scheduled stored procedures) per day.</p>
+      <p><strong>What it is:</strong> Total compute hours consumed by Snowflake Tasks (scheduled SQL statements) per day.</p>
+      
+      <p><strong>What are Tasks:</strong> Serverless Tasks are scheduled SQL statements that run automatically (like cron jobs or scheduled procedures). They run independently of warehouses, making them cost-effective for event-driven workloads.</p>
+      
+      <p><strong>Pricing model:</strong> Tasks use multipliers for both compute and Cloud Services:</p>
+      <ul>
+        <li><strong>Compute multiplier:</strong> 0.9× (0.9 credits per task hour)</li>
+        <li><strong>Cloud Services multiplier:</strong> 1× (1 credit per task hour)</li>
+        <li><strong>Total:</strong> 1 hour of Task runtime = 1.9 credits (0.9 compute + 1 Cloud Services)</li>
+      </ul>
+      
+      <p><strong>Why 0.9× compute:</strong> Tasks typically use slightly less compute than equivalent warehouse queries because they're optimized for scheduled execution. The Cloud Services multiplier accounts for task scheduling and coordination overhead.</p>
+      
+      <p><strong>Backward compatibility:</strong> Older configurations may use a simple overhead rate (e.g., 0.25 credits/hour) instead of multipliers. The calculator supports both formats.</p>
+      
       <p><strong>Where to find it:</strong></p>
       <ul>
         <li><strong>Task History:</strong></li>
@@ -199,7 +300,7 @@ FROM SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY
 WHERE STATE = 'SUCCEEDED'
   AND SCHEDULED_TIME >= DATEADD(day, -1, CURRENT_DATE())
 GROUP BY NAME;</pre>
-        <li><strong>Warehouse Credit Usage:</strong> Check serverless task compute in account usage</li>
+        <li><strong>Serverless Task Credit Usage:</strong> Check serverless task compute in account usage</li>
         <pre>SELECT 
   SUM(CREDITS_USED) AS TASK_CREDITS
 FROM SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
@@ -207,24 +308,127 @@ WHERE SERVICE_TYPE = 'SNOWFLAKE_TASK'
   AND START_TIME >= DATEADD(day, -1, CURRENT_DATE());</pre>
         <li><strong>Admin Console:</strong> Activity → Tasks → View execution history</li>
       </ul>
+      
       <p><strong>What are Tasks used for:</strong></p>
       <ul>
         <li>Scheduled data transformations (DBT incremental models)</li>
         <li>Automated refresh of materialized views</li>
         <li>Data quality checks and monitoring</li>
         <li>Orchestration of multi-step workflows</li>
+        <li>Automated data pipeline steps</li>
       </ul>
-      <p><strong>Pricing:</strong></p>
+      
+      <p><strong>Cost example:</strong> If Tasks run 1 hour/day:</p>
       <ul>
-        <li>Serverless Tasks: ~1.5x warehouse credit pricing (easier management)</li>
-        <li>Warehouse-based Tasks: Standard warehouse pricing (more control)</li>
+        <li>Compute credits: 1 hour × 0.9 multiplier = 0.9 credits</li>
+        <li>Cloud Services credits: 1 hour × 1 multiplier = 1 credit</li>
+        <li>Total: 1.9 credits/day</li>
+        <li>Monthly (30 days): 57 credits</li>
       </ul>
+      
       <p><strong>Tips:</strong></p>
       <ul>
         <li>Use 0 for new deployments with external orchestration (Airflow, dbt Cloud, etc.)</li>
         <li>For migrating batch jobs, estimate task runtime based on transformation complexity</li>
         <li>Consider serverless tasks for simple, infrequent jobs; warehouses for heavy processing</li>
+        <li>Tasks are more cost-effective than keeping warehouses running for scheduled jobs</li>
       </ul>
+    </section>
+
+    <section class="card">
+      <h2>Warehouse Types</h2>
+      <p>Understanding warehouse types helps you choose the right configuration for your workload:</p>
+      
+      <h3>Standard Warehouse</h3>
+      <p><strong>What it is:</strong> A single compute cluster that processes queries sequentially or concurrently (depending on warehouse size and query complexity).</p>
+      <ul>
+        <li><strong>Use case:</strong> Most workloads, batch processing, single-user scenarios</li>
+        <li><strong>Cost:</strong> Credits = Warehouse Hours × Credits/Hour</li>
+        <li><strong>Concurrency:</strong> Handles concurrent queries within the cluster's capacity</li>
+        <li><strong>When to use:</strong> Default choice for most workloads</li>
+      </ul>
+      
+      <h3 id="multi-cluster-warehouse">Multi-Cluster Warehouse</h3>
+      <p><strong>What it is:</strong> Multiple compute clusters that share the workload horizontally. Each cluster can handle queries independently.</p>
+      <ul>
+        <li><strong>Use case:</strong> High-concurrency workloads (many users querying simultaneously), BI dashboards, ad-hoc reporting</li>
+        <li><strong>Cost:</strong> Credits = Single Cluster Credits × Number of Clusters</li>
+        <li><strong>Concurrency:</strong> Scales horizontally—3 clusters = 3× the concurrent query capacity</li>
+        <li><strong>When to use:</strong> When a single cluster can't handle your concurrency requirements</li>
+        <li><strong>Cost impact:</strong> Costs scale linearly with cluster count (3 clusters = 3× the cost)</li>
+      </ul>
+      
+      <p><strong>Example:</strong> If a single XL cluster uses 100 credits/day, 3 XL clusters = 300 credits/day.</p>
+      
+      <p><strong>Multi-cluster vs larger warehouse:</strong></p>
+      <ul>
+        <li><strong>Larger warehouse (e.g., 2XL):</strong> Faster queries, but still limited concurrency per cluster</li>
+        <li><strong>Multi-cluster (e.g., 3× XL):</strong> Same query speed, but 3× the concurrent query capacity</li>
+        <li><strong>Choose multi-cluster:</strong> When you need more concurrent queries, not faster individual queries</li>
+        <li><strong>Choose larger warehouse:</strong> When you need faster queries but don't need high concurrency</li>
+      </ul>
+      
+      <h3>Serverless Warehouse</h3>
+      <p><strong>What it is:</strong> A fully managed warehouse that automatically scales compute resources based on workload demand. You don't manage warehouse size or scaling.</p>
+      <ul>
+        <li><strong>Use case:</strong> Variable workloads, unpredictable demand, development/testing</li>
+        <li><strong>Cost:</strong> Pay for actual compute consumed (similar to standard warehouses)</li>
+        <li><strong>Advantages:</strong> No need to choose warehouse size, automatic scaling, no manual management</li>
+        <li><strong>Considerations:</strong> May have slight overhead compared to standard warehouses for consistent workloads</li>
+      </ul>
+      
+      <p><strong>Note:</strong> The calculator currently models standard and multi-cluster warehouses. Serverless warehouse costs are similar but may vary based on actual usage patterns.</p>
+    </section>
+
+    <section class="card" id="storage-types">
+      <h2>Storage Types</h2>
+      <p>Snowflake charges for three types of storage, all at the same rate per TB/month:</p>
+      
+      <h3>Regular Storage</h3>
+      <p><strong>What it is:</strong> Active data in your tables—the primary storage cost representing your current database size.</p>
+      <ul>
+        <li><strong>What's included:</strong> All tables, views, and data objects</li>
+        <li><strong>Pricing:</strong> Based on uncompressed data size (Snowflake applies 3-5× compression automatically)</li>
+        <li><strong>How to find:</strong> Sum of uncompressed table sizes from Db2 catalog or Snowflake INFORMATION_SCHEMA</li>
+      </ul>
+      
+      <h3>Time Travel Storage</h3>
+      <p><strong>What it is:</strong> Historical versions of your data for point-in-time recovery. Snowflake maintains historical data for a configurable retention period.</p>
+      <ul>
+        <li><strong>What it provides:</strong> Ability to query data as it existed at any point in time within the retention period</li>
+        <li><strong>Use cases:</strong> Accidental data deletion recovery, point-in-time queries, audit trails, "undo" operations</li>
+        <li><strong>Retention:</strong> Configurable per table
+          <ul>
+            <li>Standard edition: 1 day (fixed)</li>
+            <li>Enterprise+: 1-90 days (configurable)</li>
+          </ul>
+        </li>
+        <li><strong>How to estimate:</strong> Based on data change rate and retention period. For daily full refreshes with 7-day retention, Time Travel ≈ 7× daily change volume.</li>
+        <li><strong>Cost:</strong> Charged at the same rate as regular storage</li>
+      </ul>
+      
+      <p><strong>Example:</strong> If you have 10 TB of data with 7-day Time Travel retention and 10% daily change rate:</p>
+      <ul>
+        <li>Daily changes: 10 TB × 10% = 1 TB</li>
+        <li>Time Travel storage: 1 TB × 7 days = 7 TB</li>
+      </ul>
+      
+      <h3>Fail-safe Storage</h3>
+      <p><strong>What it is:</strong> Disaster recovery backup maintained by Snowflake for 7 days after Time Travel expires. This is a safety net beyond Time Travel.</p>
+      <ul>
+        <li><strong>What it provides:</strong> Additional protection against catastrophic data loss</li>
+        <li><strong>Retention:</strong> Fixed 7 days (not configurable, not user-accessible)</li>
+        <li><strong>Access:</strong> Only accessible via Snowflake support (not user-accessible like Time Travel)</li>
+        <li><strong>When it applies:</strong> After Time Travel retention expires, data moves to Fail-safe for 7 additional days</li>
+        <li><strong>How to estimate:</strong> Typically 10-20% of Time Travel storage, or estimate based on data change rate × 7 days</li>
+        <li><strong>Cost:</strong> Charged at the same rate as regular storage</li>
+      </ul>
+      
+      <p><strong>Why all charged at same rate:</strong> All three storage types use the same underlying Snowflake storage infrastructure. The pricing reflects storage costs, not the value of the data protection features.</p>
+      
+      <p><strong>Uncompressed size:</strong> Storage costs are based on uncompressed data size. Snowflake applies automatic compression (typically 3-5×), but you're charged for the uncompressed size. This is why the calculator asks for "uncompressed TB at rest."</p>
+      
+      <p><strong>Storage vs Compute:</strong> Storage costs are completely separate from compute costs. You pay for data at rest regardless of how much you query it. A 100 TB database with no queries still incurs storage costs.</p>
     </section>
 
     <section class="card">
@@ -263,6 +467,17 @@ WHERE SERVICE_TYPE = 'SNOWFLAKE_TASK'
         <li><strong>Materialized views:</strong> Pre-aggregate frequently queried data</li>
         <li><strong>Compression:</strong> Snowflake auto-compresses—don't pre-compress files</li>
         <li><strong>Multi-cluster:</strong> Enable only for high-concurrency BI workloads</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>See Also</h2>
+      <p>Related documentation that helps you understand the full calculation process:</p>
+      <ul>
+        <li><strong><a href="../index.html#calculation-logic-tab">Calculation Logic</a>:</strong> Detailed explanation of how Snowflake configuration affects costs in the 10-step calculation</li>
+        <li><strong><a href="./calibration_guide.html">Calibration Guide</a>:</strong> Understanding k-factor and how to calibrate it for your workloads</li>
+        <li><strong><a href="./db2_dba_how_to_use.html">Db2 DBA Guide</a>:</strong> Where DBAs find Db2 for z/OS metrics</li>
+        <li><strong><a href="../README.md#documentation">Documentation Index</a>:</strong> Complete list of all documentation and key concepts</li>
       </ul>
     </section>
 

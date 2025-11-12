@@ -374,6 +374,50 @@
         <p><strong>Key Principle:</strong> We convert Db2 for z/OS CPU time to Snowflake XS-equivalent hours using workload-specific calibration factors (k-values), then select the smallest warehouse size that can complete the workload within the batch window.</p>
       </section>
 
+      <section class="card" id="key-concepts">
+        <h2>Key Concepts</h2>
+        <p>Before diving into the calculation steps, it's helpful to understand these fundamental concepts:</p>
+        
+        <h3>Credits: Snowflake's Compute Currency</h3>
+        <p><strong>What are credits?</strong> Credits are Snowflake's unit of compute consumption. Think of them like "compute hours" but normalized across different warehouse sizes.</p>
+        <ul>
+          <li><strong>1 credit = 1 hour of XS warehouse runtime</strong> (baseline)</li>
+          <li>Larger warehouses consume credits faster: S warehouse uses 2 credits/hour, M uses 4 credits/hour, etc.</li>
+          <li><strong>Credits consumed = Cost:</strong> Monthly cost = Credits × Price per Credit (varies by region and edition)</li>
+        </ul>
+        <p><strong>Why credits matter:</strong> Snowflake bills based on credits consumed, not warehouse hours directly. Understanding credits helps you understand costs.</p>
+        
+        <h3>Size Factors: How Warehouse Sizes Scale</h3>
+        <p><strong>What are size factors?</strong> Size factors represent how much faster each warehouse size is compared to XS:</p>
+        <ul>
+          <li>XS = 1× (baseline), S = 2×, M = 4×, L = 8×, XL = 16×, 2XL = 32×, 3XL = 64×, 4XL = 128×</li>
+          <li>A 2× warehouse completes work in half the time of XS</li>
+          <li>A 4× warehouse completes work in 1/4 the time of XS</li>
+        </ul>
+        <p><strong>Cost vs Speed Trade-off:</strong> Larger warehouses cost more per hour but complete work faster. If you can use the full time window, total cost is the same. The calculator selects the smallest size that fits your batch window to minimize costs.</p>
+        <p><strong>Example:</strong> 8 XS-equivalent hours costs 10.8 credits whether you use XS (8 hours) or M warehouse (2 hours). But M completes in 2 hours vs 8 hours.</p>
+        
+        <h3>Multi-Cluster Warehouses: Horizontal Scaling</h3>
+        <p><strong>What is multi-cluster?</strong> Multi-cluster warehouses allow you to add multiple compute clusters (horizontal scaling) to handle higher concurrency or larger workloads.</p>
+        <ul>
+          <li><strong>Single cluster:</strong> One compute cluster handles all queries</li>
+          <li><strong>Multi-cluster:</strong> Multiple clusters share the workload (e.g., 3 clusters = 3× the compute capacity)</li>
+          <li><strong>Cost impact:</strong> Credits consumed = Single cluster credits × Number of clusters</li>
+        </ul>
+        <p><strong>When to use:</strong> Multi-cluster is useful when you need to handle many concurrent queries or when a single cluster can't meet your concurrency requirements. However, it increases costs linearly with cluster count.</p>
+        <p><strong>Example:</strong> If a single XL cluster uses 100 credits/day, 3 XL clusters = 300 credits/day.</p>
+        
+        <h3>k-factor: Calibration for Performance Differences</h3>
+        <p><strong>What is k-factor?</strong> The k-factor accounts for performance differences between Db2 for z/OS and Snowflake when running the same workload.</p>
+        <ul>
+          <li><strong>k = 1.0:</strong> Snowflake needs the same compute time as Db2 (rare)</li>
+          <li><strong>k = 1.8:</strong> Snowflake needs 1.8× the compute time (typical for ELT batch)</li>
+          <li><strong>k = 2.4:</strong> Snowflake needs 2.4× the compute time (typical for reporting)</li>
+        </ul>
+        <p><strong>Why k ≠ 1.0:</strong> Differences in query optimization, data models (columnar vs row-based), network overhead, and system architecture cause performance differences. See the <a href="./docs/calibration_guide.html">Calibration Guide</a> for detailed explanation.</p>
+        <p><strong>Critical importance:</strong> Using the wrong k-factor can cause cost estimates to be off by 50% or more. Always calibrate k-factors for your specific workloads.</p>
+      </section>
+
       <section class="card">
         <h2>Db2 for z/OS DBA Inputs: Usage & Rationale</h2>
 
@@ -522,12 +566,30 @@
           <p><strong>Example:</strong> 36 XS hours with 2 concurrent jobs = 72 XS-equivalent hours needed</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-3-select-optimal-warehouse-size">
           <h3>Step 3: Select Optimal Warehouse Size</h3>
           <p><strong>Formula:</strong> <code>Warehouse Hours = Total Need / Size Factor</code></p>
           <p><strong>Selection Logic:</strong> Choose smallest size where <code>Warehouse Hours ≤ Batch Window</code></p>
           <p><strong>Size Factors:</strong> XS=1×, S=2×, M=4×, L=8×, XL=16×, 2XL=32×, 3XL=64×, 4XL=128×</p>
-          <p><strong>Why smallest size:</strong> Minimizes costs while meeting SLA requirements. Larger warehouses cost more per hour but complete work faster.</p>
+          
+          <p><strong>Why smallest size:</strong> Minimizes costs while meeting SLA requirements. Larger warehouses cost more per hour but complete work faster. Since total cost is the same if you can use the full time window, selecting the smallest size that fits provides cost optimization without sacrificing performance.</p>
+          
+          <p><strong>How size factors work:</strong></p>
+          <ul>
+            <li>Each warehouse size is a multiple of XS capacity (2×, 4×, 8×, etc.)</li>
+            <li>A 2× warehouse completes work in half the time but costs 2× per hour</li>
+            <li>The calculator tries sizes from smallest to largest until one fits the batch window</li>
+            <li>This ensures you get the minimum cost while meeting your SLA</li>
+          </ul>
+          
+          <p><strong>Multi-cluster consideration:</strong> If using multi-cluster warehouses, the calculation accounts for cluster count. Each cluster consumes credits independently, so total credits = single cluster credits × cluster count.</p>
+          
+          <p><strong>Example:</strong> 72 XS-equivalent hours needed, 4-hour window</p>
+          <ul>
+            <li>Try XL (16×): 72 ÷ 16 = 4.5 hours (too long for 4h window)</li>
+            <li>Try 2XL (32×): 72 ÷ 32 = 2.25 hours ✅ (fits in 4h window)</li>
+            <li><strong>Result:</strong> Select 2XL warehouse</li>
+          </ul>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
@@ -538,15 +600,36 @@
           <p><strong>Why credits:</strong> Snowflake uses a credit-based billing model. Credits consumed = compute cost.</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-5-calculate-cloud-services-credits">
           <h3>Step 5: Calculate Cloud Services Credits</h3>
           <p><strong>Formula:</strong> <code>CS Credits/Day = min(4.4 × Warehouse Hours, Waiver% × Warehouse Credits)</code></p>
           <p><strong>Waiver Rule:</strong> Cloud Services are waived if ≤ 10% of warehouse credits (configurable)</p>
-          <p><strong>Why Cloud Services:</strong> Snowflake charges for metadata operations, query compilation, and coordination. The 10% waiver reflects typical usage patterns.</p>
-          <p><strong>Cap:</strong> Maximum CS credits = 4.4 credits/hour × warehouse hours (prevents runaway costs)</p>
+          
+          <p><strong>What Cloud Services covers:</strong> Cloud Services credits pay for operations that don't run on warehouses:</p>
+          <ul>
+            <li><strong>Metadata operations:</strong> Table definitions, schema management, security policies</li>
+            <li><strong>Query compilation:</strong> SQL parsing, optimization, execution plan generation</li>
+            <li><strong>Coordination:</strong> Query scheduling, result set management, transaction coordination</li>
+            <li><strong>Authentication:</strong> User authentication and authorization checks</li>
+            <li><strong>Data dictionary:</strong> Accessing metadata about tables, columns, and relationships</li>
+          </ul>
+          
+          <p><strong>Why the 10% waiver exists:</strong> Snowflake provides this waiver because Cloud Services typically consume 5-10% of warehouse credits for normal workloads. This waiver makes Cloud Services "free" for most customers, simplifying cost planning. However, workloads with heavy metadata operations (many small queries, frequent DDL operations) may exceed the waiver.</p>
+          
+          <p><strong>Why there's a cap (4.4 credits/hour):</strong> The cap prevents runaway Cloud Services costs if something goes wrong (e.g., runaway query compilation, metadata thrashing). The cap is based on warehouse hours, not credits, ensuring it scales appropriately.</p>
+          
+          <p><strong>When you might exceed the waiver:</strong></p>
+          <ul>
+            <li>Many small, frequent queries (high query compilation overhead)</li>
+            <li>Heavy DDL operations (frequent schema changes)</li>
+            <li>Complex security policies requiring frequent evaluation</li>
+            <li>Very short-running warehouses (Cloud Services overhead becomes significant)</li>
+          </ul>
+          
+          <p><strong>Example:</strong> If warehouse credits = 100/day, Cloud Services waiver = 10 credits/day (10%). If actual Cloud Services = 8 credits/day, you pay 0 (waived). If actual = 15 credits/day, you pay 15 credits/day (exceeds waiver).</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-6-calculate-serverless-credits">
           <h3>Step 6: Calculate Serverless Credits</h3>
           <p><strong>Components:</strong></p>
           <ul>
@@ -554,7 +637,27 @@
             <li><strong>Search Optimization:</strong> Compute hours × (2 compute + 1 Cloud Services multipliers)</li>
             <li><strong>Tasks:</strong> Task hours × (0.9 compute + 1 Cloud Services multipliers)</li>
           </ul>
-          <p><strong>Why serverless:</strong> These features run independently of warehouses and have their own pricing models.</p>
+          
+          <p><strong>Why serverless:</strong> These features run independently of warehouses and have their own pricing models. They don't require warehouses to be running, which makes them cost-effective for event-driven workloads.</p>
+          
+          <h4>Snowpipe Pricing (Edition-Specific)</h4>
+          <p><strong>Why pricing differs by edition:</strong> Business-Critical and VPS editions use a different Snowpipe architecture optimized for high-volume, continuous ingestion. This architecture has different cost characteristics than Standard/Enterprise editions.</p>
+          <ul>
+            <li><strong>Standard/Enterprise:</strong> Pay per 1000 files processed + compute multiplier for processing time. Typical rate: ~0.06 credits per 1000 files, ~1.25× multiplier for compute hours.</li>
+            <li><strong>Business-Critical/VPS:</strong> Pay per GB of data processed. Typical rate: ~0.0037 credits per GB. This model is more cost-effective for high-volume, low-file-count scenarios.</li>
+          </ul>
+          <p><strong>When to use each:</strong> If you process many small files, Standard/Enterprise pricing may be better. If you process fewer, larger files, Business-Critical/VPS pricing may be better.</p>
+          
+          <h4>Search Optimization</h4>
+          <p><strong>What it is:</strong> Search Optimization Service accelerates point lookups and filtering on large tables by maintaining optimized data structures.</p>
+          <p><strong>Pricing model:</strong> Uses multipliers: 2× for compute + 1× for Cloud Services = 3× total multiplier. This means 1 hour of Search Optimization compute = 3 credits (2 compute + 1 Cloud Services).</p>
+          <p><strong>Why multipliers:</strong> Search Optimization requires both compute resources (to maintain indexes) and Cloud Services (for metadata and coordination).</p>
+          
+          <h4>Serverless Tasks</h4>
+          <p><strong>What it is:</strong> Scheduled SQL statements that run automatically (like cron jobs or scheduled procedures).</p>
+          <p><strong>Pricing model:</strong> Uses multipliers: 0.9× for compute + 1× for Cloud Services = 1.9× total multiplier. This means 1 hour of Task runtime = 1.9 credits (0.9 compute + 1 Cloud Services).</p>
+          <p><strong>Why 0.9× compute:</strong> Tasks typically use slightly less compute than equivalent warehouse queries because they're optimized for scheduled execution. The Cloud Services multiplier accounts for task scheduling and coordination overhead.</p>
+          <p><strong>Backward compatibility:</strong> Older configurations may use a simple overhead rate (e.g., 0.25 credits/hour) instead of multipliers. The calculator supports both formats.</p>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
@@ -563,24 +666,109 @@
           <p><strong>Purpose:</strong> Scale daily costs to monthly based on execution frequency</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-8-calculate-compute-cost">
           <h3>Step 8: Calculate Compute Cost</h3>
           <p><strong>Formula:</strong> <code>Compute Cost = Monthly Credits × Price/Credit(Region, Edition)</code></p>
           <p><strong>Edition Impact:</strong> Standard ($2/credit), Enterprise ($3/credit), Business Critical ($4/credit), VPS ($6/credit)</p>
-          <p><strong>Why edition matters:</strong> Higher editions provide additional features (security, compliance, isolation) at higher cost.</p>
+          
+          <p><strong>What credits represent:</strong> Credits are Snowflake's unit of compute consumption. They represent actual compute work performed, normalized across warehouse sizes. 1 credit = 1 hour of XS warehouse runtime (baseline).</p>
+          
+          <p><strong>Why pricing varies by edition:</strong> Higher editions don't just provide more performance—they provide additional features and capabilities:</p>
+          <ul>
+            <li><strong>Standard:</strong> Basic Snowflake features, suitable for most workloads</li>
+            <li><strong>Enterprise:</strong> Adds advanced security (encryption, key management), time travel extensions, materialized views, and more</li>
+            <li><strong>Business Critical:</strong> Adds enhanced security (HIPAA, PCI-DSS compliance), private connectivity options, and additional isolation</li>
+            <li><strong>VPS (Virtual Private Snowflake):</strong> Dedicated infrastructure, maximum isolation, compliance certifications, and dedicated support</li>
+          </ul>
+          <p><strong>Key point:</strong> Edition pricing reflects features and compliance capabilities, not just compute performance. All editions have the same compute performance for the same warehouse size.</p>
+          
+          <p><strong>Why pricing varies by region:</strong> Different cloud provider regions have different infrastructure costs, which Snowflake passes through. Some regions may also have different demand patterns affecting pricing.</p>
+          
+          <p><strong>VPS fallback:</strong> If VPS pricing isn't configured for a region, the calculator falls back to Business Critical pricing, as VPS is typically priced similarly to Business Critical in most regions.</p>
+          
+          <p><strong>Example:</strong> 1,000 credits/month × $3/credit (Enterprise) = $3,000/month compute cost. Same workload on Standard = $2,000/month (saves $1,000 but loses Enterprise features).</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-9-calculate-storage-cost">
           <h3>Step 9: Calculate Storage Cost</h3>
           <p><strong>Formula:</strong> <code>Storage Cost = (Regular TB + Time Travel TB + Fail-safe TB) × Storage Rate/TB/Month</code></p>
-          <p><strong>Why separate:</strong> Storage is independent of compute—you pay for data at rest regardless of query activity.</p>
+          
+          <p><strong>Why separate:</strong> Storage is independent of compute—you pay for data at rest regardless of query activity. This is different from traditional databases where storage and compute are bundled together.</p>
+          
+          <h4>Storage Types</h4>
+          <p><strong>Regular Storage:</strong> Active data in your tables. This is the primary storage cost and represents your current database size.</p>
+          
+          <p><strong>Time Travel Storage:</strong> Historical versions of your data for point-in-time recovery. Snowflake maintains historical data for a configurable retention period (default: 1 day, can be extended up to 90 days for Enterprise+).</p>
+          <ul>
+            <li><strong>What it provides:</strong> Ability to query data as it existed at any point in time within the retention period</li>
+            <li><strong>Use cases:</strong> Accidental data deletion recovery, point-in-time queries, audit trails</li>
+            <li><strong>Retention:</strong> Configurable per table (1-90 days for Enterprise+, 1 day for Standard)</li>
+            <li><strong>Cost:</strong> Charged at the same rate as regular storage</li>
+          </ul>
+          
+          <p><strong>Fail-safe Storage:</strong> Disaster recovery backup maintained by Snowflake for 7 days after Time Travel expires. This is a safety net beyond Time Travel.</p>
+          <ul>
+            <li><strong>What it provides:</strong> Additional protection against catastrophic data loss</li>
+            <li><strong>Retention:</strong> Fixed 7 days (not configurable)</li>
+            <li><strong>Access:</strong> Only accessible via Snowflake support (not user-accessible like Time Travel)</li>
+            <li><strong>Cost:</strong> Charged at the same rate as regular storage</li>
+          </ul>
+          
+          <p><strong>Why all charged at same rate:</strong> All three storage types use the same underlying Snowflake storage infrastructure. The pricing reflects storage costs, not the value of the data protection features.</p>
+          
+          <p><strong>Uncompressed size:</strong> Storage costs are based on uncompressed data size. Snowflake applies automatic compression (typically 3-5×), but you're charged for the uncompressed size. This is why the calculator asks for "uncompressed TB at rest."</p>
+          
+          <p><strong>Example:</strong> 30 TB regular + 5 TB Time Travel + 2 TB Fail-safe = 37 TB total × $23/TB/month = $851/month storage cost.</p>
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.5rem;" id="step-10-calculate-transfer-cost">
           <h3>Step 10: Calculate Transfer Cost</h3>
           <p><strong>Formula:</strong> <code>Transfer Cost = Egress TB × Egress Rate(Route)</code></p>
-          <p><strong>Route Types:</strong> Intra-region ($0), Inter-region ($20/TB), Internet ($90/TB), Cross-cloud (varies)</p>
-          <p><strong>Why egress:</strong> Snowflake charges for data leaving their platform, not for data ingress.</p>
+          <p><strong>Route Types:</strong> Intra-region ($0), Inter-region ($20/TB), Internet ($90/TB), Cross-cloud ($90/TB), Account Transfer ($20/TB)</p>
+          
+          <p><strong>Why egress:</strong> Snowflake charges for data leaving their platform (egress), not for data entering (ingress). This is common in cloud platforms—you pay to get data out, not to put data in.</p>
+          
+          <h4>Egress Route Types</h4>
+          <p><strong>Intra-Region ($0/TB):</strong> Data transfer within the same Snowflake region (e.g., from Snowflake to an EC2 instance in the same AWS region).</p>
+          <ul>
+            <li><strong>When to use:</strong> When your destination is in the same cloud region as Snowflake</li>
+            <li><strong>Cost:</strong> Free—no egress charges</li>
+            <li><strong>Example:</strong> Snowflake in AWS us-east-1 → EC2 instance in AWS us-east-1</li>
+          </ul>
+          
+          <p><strong>Inter-Region ($20/TB):</strong> Data transfer between regions within the same cloud provider (e.g., from Snowflake in AWS us-east-1 to AWS us-west-2).</p>
+          <ul>
+            <li><strong>When to use:</strong> When your destination is in a different region but same cloud provider</li>
+            <li><strong>Cost:</strong> Moderate—typically $20/TB (varies by cloud provider)</li>
+            <li><strong>Example:</strong> Snowflake in AWS us-east-1 → S3 bucket in AWS us-west-2</li>
+          </ul>
+          
+          <p><strong>Cross-Cloud ($90/TB):</strong> Data transfer between different cloud providers (e.g., from Snowflake in AWS to Azure or GCP).</p>
+          <ul>
+            <li><strong>When to use:</strong> When your destination is in a different cloud provider</li>
+            <li><strong>Cost:</strong> High—typically $90/TB (priced like internet egress)</li>
+            <li><strong>Example:</strong> Snowflake in AWS us-east-1 → Azure Blob Storage</li>
+          </ul>
+          
+          <p><strong>Internet ($90/TB):</strong> Data transfer to the public internet (e.g., downloading data to your local machine or to a non-cloud destination).</p>
+          <ul>
+            <li><strong>When to use:</strong> When your destination is on the public internet or not in a cloud provider</li>
+            <li><strong>Cost:</strong> High—typically $90/TB</li>
+            <li><strong>Example:</strong> Snowflake → Your local machine via internet connection</li>
+          </ul>
+          
+          <p><strong>Account Transfer ($20/TB):</strong> Data transfer between different Snowflake accounts (e.g., from production account to development account).</p>
+          <ul>
+            <li><strong>When to use:</strong> When replicating data between Snowflake accounts</li>
+            <li><strong>Cost:</strong> Moderate—typically $20/TB (priced like inter-region)</li>
+            <li><strong>Example:</strong> Production Snowflake account → Development Snowflake account</li>
+          </ul>
+          
+          <p><strong>Why intra-region is free:</strong> Cloud providers don't charge for data transfer within the same region because it uses their internal network. Snowflake passes this cost structure through to customers.</p>
+          
+          <p><strong>Cost optimization tip:</strong> Keep data processing within the same region as Snowflake to avoid egress charges. Use intra-region transfers whenever possible.</p>
+          
+          <p><strong>Example:</strong> 10 TB egress via internet = 10 TB × $90/TB = $900/month. Same data via intra-region = $0/month.</p>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
@@ -629,9 +817,24 @@
         <h2>References</h2>
         <ul>
           <li><a href="./docs/Snowflake_Service_Consumption_CursorReady.md">Snowflake Service Consumption Reference</a></li>
-          <li><a href="./docs/calibration_guide.html">Calibration Guide</a> - How to refine k-values</li>
+          <li><a href="./docs/calibration_guide.html">Calibration Guide</a> - How to refine k-values and understand k-factor</li>
           <li><a href="./docs/db2_dba_how_to_use.html">Db2 for z/OS DBA Guide</a> - Where to find Db2 for z/OS metrics</li>
-          <li><a href="./docs/snowflake_architects_how_to_use.html">Snowflake Architect Guide</a> - Snowflake configuration details</li>
+          <li><a href="./docs/snowflake_architects_how_to_use.html">Snowflake Architect Guide</a> - Snowflake configuration details, warehouse types, and serverless features</li>
+          <li><a href="./README.md#documentation">Documentation Index</a> - Complete list of all documentation and key concepts</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Key Concepts Quick Links</h2>
+        <p>Jump directly to explanations of key calculation factors:</p>
+        <ul>
+          <li><a href="#key-concepts">Key Concepts</a> - Credits, size factors, multi-cluster, k-factor</li>
+          <li><a href="#step-3-select-optimal-warehouse-size">Step 3: Warehouse Size Selection</a> - How size factors work</li>
+          <li><a href="#step-5-calculate-cloud-services-credits">Step 5: Cloud Services</a> - The 10% waiver rule explained</li>
+          <li><a href="#step-6-calculate-serverless-credits">Step 6: Serverless Features</a> - Snowpipe, Search Optimization, Tasks</li>
+          <li><a href="#step-8-calculate-compute-cost">Step 8: Credits vs Dollars</a> - Edition pricing and regional differences</li>
+          <li><a href="#step-9-calculate-storage-cost">Step 9: Storage Types</a> - Regular, Time Travel, Fail-safe</li>
+          <li><a href="#step-10-calculate-transfer-cost">Step 10: Egress Routes</a> - Data transfer pricing and optimization</li>
         </ul>
       </section>
 

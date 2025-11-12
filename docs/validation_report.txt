@@ -4,14 +4,26 @@ COMPREHENSIVE VALIDATION REPORT
 
 SUMMARY
 ----------------------------------------------------------------------
-Total Checks: 209
-Passed: 209
+Total Checks: 247
+Passed: 247
 Warnings: 0
 Errors: 0
 
 PASSED CHECKS
 ----------------------------------------------------------------------
-209 checks passed successfully
+247 checks passed successfully
 
 STATUS: [PASS] VALIDATION PASSED
 All checks passed successfully!
+
+======================================================================
+SNOWFLAKE DOCUMENT VALIDATION
+======================================================================
+
+See: docs/snowflake_doc_validation_report.md
+
+Status: [PASS] VALIDATION PASSED
+- All critical values match Snowflake Service Consumption document
+- Calculation logic correctly implements all formulas
+- All example regions validated successfully
+- No errors or warnings
