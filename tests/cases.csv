@@ -1,0 +1,4 @@
+name,db2_cpu_seconds,batch_window_hours,concurrency,uncompressed_tb,freq,egress_tb,egress_route,region,edition,family,snowpipe_files,searchopt_tb,tasks_hours
+baseline,72000,4,2,30,30,2,interRegion,aws-us-east-1,enterprise,elt_batch,0,0,0
+low_cpu,1800,2,1,5,30,0,intraRegion,aws-us-west-2,standard,reporting,1000,1,0.5
+

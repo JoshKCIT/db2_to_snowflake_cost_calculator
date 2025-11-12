@@ -1,0 +1,10 @@
+// Keep in sync with calibration.json
+window.CONFIG_CALIBRATION = {
+  "workloadFamilies": {
+    "elt_batch": { "k_xs_seconds_per_db2_cpu_second": 1.8, "notes": "placeholder" },
+    "reporting": { "k_xs_seconds_per_db2_cpu_second": 2.4, "notes": "placeholder" },
+    "cdc": { "k_xs_seconds_per_db2_cpu_second": 1.2, "notes": "placeholder" }
+  },
+  "defaultFamily": "elt_batch"
+};
+

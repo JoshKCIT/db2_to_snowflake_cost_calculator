@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Snowflake Architect Guide - Snowflake Budget Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <h1>Snowflake Solution Architect Guide</h1>
+    <p><a href="../index.html">← Back to Calculator</a></p>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <p>As a Snowflake Solution Architect, you need to provide configuration details about the target Snowflake deployment. This information determines pricing, feature availability, and additional service costs beyond core compute and storage.</p>
+    </section>
+
+    <section class="card">
+      <h2>Required Inputs</h2>
+
+      <h3>1. Region</h3>
+      <p><strong>What it is:</strong> The cloud provider region where your Snowflake account will be deployed.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Existing Account:</strong> Run <code>SELECT CURRENT_REGION();</code> in a Snowflake worksheet</li>
+        <li><strong>Account URL:</strong> Check your account URL format: <code>https://&lt;account&gt;.&lt;region&gt;.snowflakecomputing.com</code></li>
+        <li><strong>Admin Console:</strong> Account → Account Information → Region</li>
+        <li><strong>New Deployment:</strong> Choose based on data residency requirements, compliance, and proximity to users/systems</li>
+      </ul>
+      <p><strong>Examples:</strong></p>
+      <ul>
+        <li><strong>AWS:</strong> us-east-1 (Virginia), us-west-2 (Oregon), eu-west-1 (Ireland)</li>
+        <li><strong>Azure:</strong> east-us-2 (Virginia), west-europe (Netherlands)</li>
+        <li><strong>GCP:</strong> us-central1 (Iowa), europe-west2 (London)</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Pricing varies significantly by region—verify specific region pricing</li>
+        <li>Consider data residency and compliance requirements (GDPR, HIPAA, etc.)</li>
+        <li>Choose regions close to your data sources and consumer applications for lower latency</li>
+      </ul>
+
+      <h3>2. Edition</h3>
+      <p><strong>What it is:</strong> The Snowflake edition tier that determines feature availability and credit pricing.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Existing Account:</strong> Run <code>SELECT CURRENT_ACCOUNT();</code> and check account details</li>
+        <li><strong>Admin Console:</strong> Account → Account Information → Edition</li>
+        <li><strong>SHOW ORGANIZATION ACCOUNTS:</strong> View all accounts and their editions</li>
+      </ul>
+      <p><strong>Options:</strong></p>
+      <ul>
+        <li><strong>Standard:</strong> Core features, lowest price per credit</li>
+        <li><strong>Enterprise:</strong> Multi-cluster warehouses, materialized views, column-level security</li>
+        <li><strong>Business Critical:</strong> HIPAA/PCI compliance, enhanced security, data encryption everywhere, customer-managed keys</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Standard is sufficient for most workloads without strict compliance requirements</li>
+        <li>Enterprise enables auto-scaling for concurrent user workloads</li>
+        <li>Business Critical required for regulated industries (healthcare, finance)</li>
+        <li>Credit pricing increases: Standard &lt; Enterprise (~1.5x) &lt; Business Critical (~2x)</li>
+      </ul>
+
+      <h3>3. Egress TB/month</h3>
+      <p><strong>What it is:</strong> Total terabytes of data transferred OUT of Snowflake per month.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Account Usage Schema:</strong></li>
+        <pre>SELECT 
+  SUM(BYTES_TRANSFERRED) / (1024*1024*1024*1024) AS TB_EGRESS
+FROM SNOWFLAKE.ACCOUNT_USAGE.DATA_TRANSFER_HISTORY
+WHERE TRANSFER_TYPE = 'COPY_OUT'
+  AND START_TIME >= DATEADD(month, -1, CURRENT_DATE());</pre>
+        <li><strong>Query History:</strong> Review UNLOAD/COPY INTO @stage operations</li>
+        <li><strong>Integration Monitoring:</strong> Track data volumes in ETL tools (Fivetran, Matillion, Talend, etc.)</li>
+        <li><strong>BI Tool Queries:</strong> Estimate data returned to Tableau, Power BI, Looker dashboards</li>
+      </ul>
+      <p><strong>What counts as egress:</strong></p>
+      <ul>
+        <li>COPY INTO external stage (S3, Azure Blob, GCS)</li>
+        <li>UNLOAD operations to cloud storage</li>
+        <li>Data replication to external systems</li>
+        <li>External table reads (in some configurations)</li>
+      </ul>
+      <p><strong>What does NOT count:</strong></p>
+      <ul>
+        <li>Query results displayed in Snowflake UI (&lt; 10 MB typically)</li>
+        <li>Intra-region data transfers (see egress route)</li>
+        <li>Metadata operations</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>For new deployments, estimate based on BI dashboard refresh schedules and export jobs</li>
+        <li>Consider data compression—most transfers are compressed</li>
+        <li>Use <code>SELECT</code> carefully; large result sets count as egress</li>
+      </ul>
+
+      <h3>4. Egress route</h3>
+      <p><strong>What it is:</strong> The network path for data leaving Snowflake, which affects transfer pricing.</p>
+      <p><strong>Options:</strong></p>
+      <ul>
+        <li><strong>intraRegion:</strong> Same region transfers (e.g., Snowflake in us-east-1 → S3 in us-east-1)—typically free or lowest cost</li>
+        <li><strong>interRegion:</strong> Cross-region transfers within same cloud (e.g., us-east-1 → us-west-2)—moderate cost</li>
+        <li><strong>internet:</strong> Transfers to different cloud providers or on-premises—highest cost</li>
+      </ul>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>External Stages:</strong> Check stage definitions for cloud provider and region</li>
+        <pre>SHOW STAGES;
+DESC STAGE my_external_stage;</pre>
+        <li><strong>Integration Endpoints:</strong> Review where your ETL tools, BI platforms, and applications are hosted</li>
+        <li><strong>Architecture Diagrams:</strong> Document showing Snowflake region vs. target system regions</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Always prefer intra-region transfers when possible (can be 10-100x cheaper)</li>
+        <li>Use external stages in the same region as Snowflake</li>
+        <li>For multi-cloud, consider Snowflake replication vs. cross-cloud transfers</li>
+      </ul>
+
+      <h3>5. Snowpipe files/day</h3>
+      <p><strong>What it is:</strong> Number of files processed daily by Snowpipe for continuous/micro-batch data ingestion.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Snowpipe History:</strong></li>
+        <pre>SELECT 
+  PIPE_NAME,
+  COUNT(*) AS FILES_PER_DAY
+FROM SNOWFLAKE.ACCOUNT_USAGE.COPY_HISTORY
+WHERE PIPE_NAME IS NOT NULL
+  AND START_TIME >= DATEADD(day, -1, CURRENT_DATE())
+GROUP BY PIPE_NAME;</pre>
+        <li><strong>SYSTEM$PIPE_STATUS():</strong> Check active pipe metrics</li>
+        <pre>SELECT SYSTEM$PIPE_STATUS('my_pipe');</pre>
+        <li><strong>Cloud Storage Logs:</strong> S3/Azure/GCS event notifications counts</li>
+        <li><strong>CDC Tools:</strong> File generation rate from Debezium, Kafka Connect, etc.</li>
+      </ul>
+      <p><strong>Cost considerations:</strong></p>
+      <ul>
+        <li>Snowpipe charges per compute-second, not per file, but file count indicates usage pattern</li>
+        <li>Many small files are less efficient than fewer large files</li>
+        <li>Typical cost: ~0.06 credits per 1,000 files (varies by file size)</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Batch micro-files when possible (aim for 100-250 MB compressed files)</li>
+        <li>For new deployments, estimate based on CDC frequency and data source change rate</li>
+        <li>Use 0 if doing batch loads only (no continuous ingestion)</li>
+      </ul>
+
+      <h3>6. Search Optimization TB (monthly)</h3>
+      <p><strong>What it is:</strong> Total terabytes of tables with Search Optimization Service enabled, measured monthly.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Search Optimization Usage:</strong></li>
+        <pre>SELECT 
+  TABLE_NAME,
+  SUM(CREDITS_USED) AS MONTHLY_CREDITS
+FROM SNOWFLAKE.ACCOUNT_USAGE.SEARCH_OPTIMIZATION_HISTORY
+WHERE START_TIME >= DATEADD(month, -1, CURRENT_DATE())
+GROUP BY TABLE_NAME;</pre>
+        <li><strong>Table Size with Search Optimization:</strong></li>
+        <pre>SELECT 
+  TABLE_NAME,
+  (BYTES / (1024*1024*1024*1024)) AS TB_SIZE
+FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+WHERE SEARCH_OPTIMIZATION_ENABLED = TRUE;</pre>
+        <li><strong>Admin Console:</strong> Resource Monitors → Search Optimization tab</li>
+      </ul>
+      <p><strong>When to use Search Optimization:</strong></p>
+      <ul>
+        <li>Point lookup queries on large tables (selective WHERE clauses)</li>
+        <li>Substring matching and LIKE queries on text fields</li>
+        <li>Tables &gt; 1 TB with selective filter queries</li>
+      </ul>
+      <p><strong>Cost:</strong></p>
+      <ul>
+        <li>Maintenance cost: ~0.015 credits per TB per day (~0.45 credits per TB per month)</li>
+        <li>Build cost: One-time charge when enabling</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Use 0 for new deployments unless you know you need it</li>
+        <li>Enable only on large tables with selective query patterns</li>
+        <li>Not needed for full table scans or well-clustered data</li>
+      </ul>
+
+      <h3>7. Tasks hours/day</h3>
+      <p><strong>What it is:</strong> Total compute hours consumed by Snowflake Tasks (scheduled stored procedures) per day.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Task History:</strong></li>
+        <pre>SELECT 
+  NAME,
+  SUM(DATEDIFF('second', SCHEDULED_TIME, COMPLETED_TIME)) / 3600.0 AS HOURS_PER_DAY
+FROM SNOWFLAKE.ACCOUNT_USAGE.TASK_HISTORY
+WHERE STATE = 'SUCCEEDED'
+  AND SCHEDULED_TIME >= DATEADD(day, -1, CURRENT_DATE())
+GROUP BY NAME;</pre>
+        <li><strong>Warehouse Credit Usage:</strong> Check serverless task compute in account usage</li>
+        <pre>SELECT 
+  SUM(CREDITS_USED) AS TASK_CREDITS
+FROM SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY
+WHERE SERVICE_TYPE = 'SNOWFLAKE_TASK'
+  AND START_TIME >= DATEADD(day, -1, CURRENT_DATE());</pre>
+        <li><strong>Admin Console:</strong> Activity → Tasks → View execution history</li>
+      </ul>
+      <p><strong>What are Tasks used for:</strong></p>
+      <ul>
+        <li>Scheduled data transformations (DBT incremental models)</li>
+        <li>Automated refresh of materialized views</li>
+        <li>Data quality checks and monitoring</li>
+        <li>Orchestration of multi-step workflows</li>
+      </ul>
+      <p><strong>Pricing:</strong></p>
+      <ul>
+        <li>Serverless Tasks: ~1.5x warehouse credit pricing (easier management)</li>
+        <li>Warehouse-based Tasks: Standard warehouse pricing (more control)</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Use 0 for new deployments with external orchestration (Airflow, dbt Cloud, etc.)</li>
+        <li>For migrating batch jobs, estimate task runtime based on transformation complexity</li>
+        <li>Consider serverless tasks for simple, infrequent jobs; warehouses for heavy processing</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Common Sources for Snowflake Configuration</h2>
+      <ul>
+        <li><strong>ACCOUNT_USAGE Schema:</strong> <code>SNOWFLAKE.ACCOUNT_USAGE.*</code> views for historical metrics</li>
+        <li><strong>INFORMATION_SCHEMA:</strong> Current account configuration and object metadata</li>
+        <li><strong>Admin Console:</strong> Snowflake web UI → Account → Usage dashboards</li>
+        <li><strong>SQL Commands:</strong> <code>SHOW PARAMETERS</code>, <code>SHOW WAREHOUSES</code>, <code>SHOW STAGES</code></li>
+        <li><strong>Resource Monitors:</strong> Set up alerts and track credit consumption</li>
+        <li><strong>Query History:</strong> Analyze query patterns and data transfer volumes</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Example Scenario</h2>
+      <p><strong>Standard Analytics Deployment:</strong></p>
+      <ul>
+        <li><strong>Region:</strong> us-east-1 (AWS Virginia)—close to source systems</li>
+        <li><strong>Edition:</strong> Enterprise—need multi-cluster for BI users</li>
+        <li><strong>Egress TB/month:</strong> 2 TB—daily dashboard refreshes and weekly exports</li>
+        <li><strong>Egress route:</strong> intraRegion—external stage in same region</li>
+        <li><strong>Snowpipe files/day:</strong> 0—using batch loads only</li>
+        <li><strong>Search Optimization TB:</strong> 0—queries are aggregations, not point lookups</li>
+        <li><strong>Tasks hours/day:</strong> 0—orchestration handled by Airflow</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Optimization Best Practices</h2>
+      <ul>
+        <li><strong>Right-size warehouses:</strong> Start small (XS/S) and scale based on performance</li>
+        <li><strong>Auto-suspend:</strong> Set to 60-120 seconds for development, 300-600 for production</li>
+        <li><strong>Clustering keys:</strong> Use for very large tables (&gt; 1 TB) with filter patterns</li>
+        <li><strong>Result cache:</strong> Leverage 24-hour query result cache—it's free</li>
+        <li><strong>Materialized views:</strong> Pre-aggregate frequently queried data</li>
+        <li><strong>Compression:</strong> Snowflake auto-compresses—don't pre-compress files</li>
+        <li><strong>Multi-cluster:</strong> Enable only for high-concurrency BI workloads</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Need Help?</h2>
+      <p>If you're unsure about any configuration parameters:</p>
+      <ul>
+        <li>Review Snowflake Account Usage views for historical patterns</li>
+        <li>Check Snowflake documentation for feature requirements</li>
+        <li>Consult your Snowflake account team for pricing details</li>
+        <li>Start with conservative estimates—you can adjust after monitoring actual usage</li>
+        <li>See <a href="./calibration_guide.html">Calibration Guide</a> for details on refining cost estimates</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p><a href="../index.html">← Back to Calculator</a></p>
+    </footer>
+  </div>
+</body>
+</html>
+

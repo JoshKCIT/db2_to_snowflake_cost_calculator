@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Db2 for z/OS DBA Guide - Snowflake Budget Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <h1>Db2 for z/OS DBA Guide</h1>
+    <p><a href="../index.html">← Back to Calculator</a></p>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <p>As a Db2 for z/OS DBA, you need to provide metrics about your current Db2 for z/OS mainframe workload. This information helps estimate the equivalent Snowflake compute resources needed for migration.</p>
+    </section>
+
+    <section class="card">
+      <h2>Required Inputs</h2>
+
+      <h3>1. Db2 for z/OS CPU seconds/day</h3>
+      <p><strong>What it is:</strong> Total CPU seconds consumed by your Db2 for z/OS workload per day.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>SMF Records:</strong> Query SMF Type 101 (IFCID 0003) records for CPU time</li>
+        <li><strong>Db2 Accounting Reports:</strong> Look for "CLASS 2 CPU TIME" in accounting trace reports</li>
+        <li><strong>IFCID 0003:</strong> Sum the QWACAJST (Job Step CPU time) field across your workload</li>
+        <li><strong>Example query:</strong> Use your SMF reporting tools (BMC, CA, or custom) to aggregate CPU seconds for the workload over a 24-hour period</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Use a typical business day, not month-end or year-end processing</li>
+        <li>Include all thread CPU time for the workload family you're estimating</li>
+        <li>Convert milliseconds to seconds if needed (divide by 1000)</li>
+      </ul>
+
+      <h3>2. Batch window (hours)</h3>
+      <p><strong>What it is:</strong> The time window available to complete your batch processing.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li>Your batch schedule documentation</li>
+        <li>Operations runbook (e.g., "EOD batch must complete by 6 AM")</li>
+        <li>Job scheduler constraints (Control-M, TWS, etc.)</li>
+      </ul>
+      <p><strong>Example:</strong> If batch starts at 10 PM and must finish by 6 AM, your window is 8 hours.</p>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Be realistic—use the actual required window, not current runtime</li>
+        <li>For on-demand workloads, estimate acceptable completion time</li>
+      </ul>
+
+      <h3>3. Concurrency (jobs)</h3>
+      <p><strong>What it is:</strong> Average number of parallel jobs/threads running simultaneously.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li>Job scheduler peak concurrency metrics</li>
+        <li>Db2 for z/OS thread counts during peak processing (DDF threads + local threads)</li>
+        <li>Workload Manager (WLM) service class definitions</li>
+      </ul>
+      <p><strong>Example:</strong> If 3-5 ETL jobs typically run at the same time, use 4 as average concurrency.</p>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Use average concurrent jobs, not total jobs in the batch cycle</li>
+        <li>For fully sequential workloads, use 1</li>
+      </ul>
+
+      <h3>4. Uncompressed TB at rest</h3>
+      <p><strong>What it is:</strong> Total uncompressed data size for the workload.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li><strong>Db2 Catalog:</strong> Query SYSIBM.SYSTABLEPART or SYSIBM.SYSTABLES for CARD (row count) and row size</li>
+        <li><strong>RUNSTATS output:</strong> Review space statistics from recent RUNSTATS utilities</li>
+        <li><strong>DBA tools:</strong> Use BMC Catalog Manager, CA tools, or native Db2 for z/OS commands</li>
+        <li><strong>DASD reports:</strong> Storage team reports showing Db2 for z/OS dataset sizes</li>
+      </ul>
+      <p><strong>Example query:</strong></p>
+      <pre>SELECT SUM(NPAGES * 4096) / (1024*1024*1024*1024) AS TB_SIZE
+FROM SYSIBM.SYSTABLESPACE
+WHERE DBNAME = 'your_database';</pre>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Use uncompressed size (Snowflake applies its own compression)</li>
+        <li>Include indexes if significant (Snowflake uses different indexing)</li>
+        <li>Add staging/work tables used in the workload</li>
+      </ul>
+
+      <h3>5. Runs per month</h3>
+      <p><strong>What it is:</strong> How many times this workload executes per month.</p>
+      <p><strong>Where to find it:</strong></p>
+      <ul>
+        <li>Job scheduler calendar (Control-M, TWS, etc.)</li>
+        <li>Operations schedule documentation</li>
+        <li>Job history logs</li>
+      </ul>
+      <p><strong>Examples:</strong></p>
+      <ul>
+        <li>Daily batch: 30 runs/month</li>
+        <li>Weekly reporting: 4 runs/month</li>
+        <li>Hourly CDC: 720 runs/month (24 × 30)</li>
+        <li>Month-end only: 1 run/month</li>
+      </ul>
+
+      <h3>6. Workload family</h3>
+      <p><strong>What it is:</strong> The type of workload being migrated.</p>
+      <p><strong>Options:</strong></p>
+      <ul>
+        <li><strong>elt_batch:</strong> Extract-Load-Transform batch jobs (heavy transformations, aggregations)</li>
+        <li><strong>reporting:</strong> Query/reporting workloads (SELECT-heavy, aggregations, analytics)</li>
+        <li><strong>cdc:</strong> Change Data Capture / incremental data sync (small frequent loads)</li>
+      </ul>
+      <p><strong>Tips:</strong></p>
+      <ul>
+        <li>Choose the family that best matches your workload characteristics</li>
+        <li>For mixed workloads, estimate each component separately</li>
+        <li>The k-value (calibration factor) differs by family—see <a href="./calibration_guide.html">Calibration Guide</a></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Common Sources for Db2 for z/OS Metrics</h2>
+      <ul>
+        <li><strong>SMF Records:</strong> System Management Facility data (Type 101 for Db2 for z/OS)</li>
+        <li><strong>Db2 Accounting Trace:</strong> IFCID 0003 records</li>
+        <li><strong>Db2 Catalog:</strong> SYSIBM.* system tables</li>
+        <li><strong>RMF Reports:</strong> Resource Measurement Facility for CPU utilization</li>
+        <li><strong>OMEGAMON / Mainview:</strong> Db2 for z/OS monitoring tools</li>
+        <li><strong>BMC MainView / CA SYSVIEW:</strong> Performance monitoring platforms</li>
+        <li><strong>Job Scheduler:</strong> Control-M, TWS, CA-7 job history and schedules</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Example Scenario</h2>
+      <p><strong>Nightly ETL Batch Process:</strong></p>
+      <ul>
+        <li><strong>Db2 for z/OS CPU seconds/day:</strong> 72,000 seconds (from SMF Type 101 aggregation)</li>
+        <li><strong>Batch window:</strong> 4 hours (runs from 2 AM to 6 AM)</li>
+        <li><strong>Concurrency:</strong> 2 jobs (two parallel ETL streams)</li>
+        <li><strong>Uncompressed TB at rest:</strong> 30 TB (from SYSTABLESPACE queries)</li>
+        <li><strong>Runs per month:</strong> 30 (daily process)</li>
+        <li><strong>Workload family:</strong> elt_batch (transformation-heavy)</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Need Help?</h2>
+      <p>If you're unsure about any metrics:</p>
+      <ul>
+        <li>Consult your performance team or capacity planner</li>
+        <li>Review recent SMF reports or Db2 for z/OS accounting summaries</li>
+        <li>Start with conservative estimates—you can refine after calibration</li>
+        <li>See <a href="./calibration_guide.html">Calibration Guide</a> for details on calibrating k-values</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p><a href="../index.html">← Back to Calculator</a></p>
+    </footer>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Snowflake Budget Calculator (Offline)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="./css/styles.css" rel="stylesheet">
+  <!-- Offline configs as JS window variables -->
+  <script src="./config/pricing.js"></script>
+  <script src="./config/rules.js"></script>
+  <script src="./config/calibration.js"></script>
+  <script src="./lib/calc.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="calculator">Calculator</button>
+      <button class="tab-btn" data-tab="configuration">Configuration</button>
+      <button class="tab-btn" data-tab="calculation-logic">Calculation Logic</button>
+    </div>
+
+    <div id="calculator-tab" class="tab-content active">
+    <h1>Snowflake Budget Calculator</h1>
+
+    <section class="card">
+      <h2>Db2 for z/OS DBA Inputs</h2>
+      <p class="section-desc">Source system metrics from Db2 for z/OS mainframe (<a href="./docs/db2_dba_how_to_use.html" class="help-link">How do I find these?</a>)</p>
+      <div class="grid">
+        <label>Db2 for z/OS CPU seconds/day
+          <input id="db2_cpu" type="number" min="0" step="1" value="72000">
+        </label>
+        <label>Batch window (hours)
+          <input id="window_h" type="number" min="0.1" step="0.1" value="4">
+        </label>
+        <label>Concurrency (jobs)
+          <input id="concurrency" type="number" min="1" step="1" value="2">
+        </label>
+        <label>Uncompressed TB at rest
+          <input id="tb_at_rest" type="number" min="0" step="0.1" value="30">
+        </label>
+        <label>Runs per month
+          <input id="freq" type="number" min="1" step="1" value="30">
+        </label>
+        <label>Workload family
+          <select id="family"></select>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Snowflake Solution Architect Inputs</h2>
+      <p class="section-desc">Target Snowflake deployment configuration (<a href="./docs/snowflake_architects_how_to_use.html" class="help-link">How do I find these?</a>)</p>
+      <div class="grid">
+        <label>Cloud Provider
+          <select id="cloud_provider">
+            <option value="aws">AWS</option>
+            <option value="azure">Azure</option>
+            <option value="gcp">GCP</option>
+          </select>
+        </label>
+        <label>Region
+          <select id="region"></select>
+        </label>
+        <label>Edition
+          <select id="edition">
+            <option value="standard">Standard</option>
+            <option value="enterprise">Enterprise</option>
+            <option value="business_critical">Business Critical</option>
+            <option value="vps">Virtual Private Snowflake (VPS)</option>
+          </select>
+        </label>
+        <label>Warehouse Type
+          <select id="warehouse_type">
+            <option value="standard">Standard</option>
+            <option value="multi_cluster">Multi-Cluster</option>
+            <option value="serverless">Serverless</option>
+          </select>
+        </label>
+        <label id="cluster_count_label" style="display:none;">Number of clusters
+          <input id="cluster_count" type="number" min="1" step="1" value="1">
+        </label>
+        <label>Egress TB/month
+          <input id="egress_tb" type="number" min="0" step="0.1" value="2">
+        </label>
+        <label>Data Transfer Type
+          <select id="egress_route">
+            <option value="intraRegion">Intra-Region (within same region)</option>
+            <option value="interRegion">Cross-Region (between regions, same cloud)</option>
+            <option value="crossCloud">Cross-Cloud (between cloud providers)</option>
+            <option value="internet">Internet-Egress (to public internet)</option>
+            <option value="accountTransfer">Account-Transfer (between Snowflake accounts)</option>
+          </select>
+        </label>
+        <label>Time Travel Storage TB/month
+          <input id="timetravel_tb" type="number" min="0" step="0.1" value="0">
+        </label>
+        <label>Fail-safe Storage TB/month
+          <input id="failsafe_tb" type="number" min="0" step="0.1" value="0">
+        </label>
+        <label>Snowpipe files/day
+          <input id="snowpipe_files" type="number" min="0" step="1" value="0">
+        </label>
+        <label>Snowpipe compute hours/day (Standard/Enterprise only)
+          <input id="snowpipe_compute_hours" type="number" min="0" step="0.1" value="0">
+        </label>
+        <label>Snowpipe uncompressed GB/day (Business-Critical/VPS only)
+          <input id="snowpipe_gb" type="number" min="0" step="0.1" value="0">
+        </label>
+        <label>Search Optimization compute hours/day
+          <input id="searchopt_compute_hours" type="number" min="0" step="0.1" value="0">
+        </label>
+        <label>Tasks hours/day
+          <input id="tasks_h" type="number" min="0" step="0.1" value="0">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="calc_btn">Calculate</button>
+        <button id="export_json">Export JSON</button>
+        <button id="export_csv">Export CSV</button>
+      </div>
+    </section>
+
+    <section id="logic" class="card" style="display:none;">
+      <details class="logic-details">
+        <summary class="logic-summary">
+          <div>
+            <h2 style="display: inline; margin: 0;">Calculation Logic</h2>
+            <p class="section-desc" style="display: block; margin: 4px 0 0 0;">Step-by-step breakdown of how results are calculated</p>
+          </div>
+        </summary>
+        <div class="logic-steps" style="margin-top: 16px;">
+        <div class="logic-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Convert Db2 for z/OS CPU to Snowflake XS Hours</h4>
+            <p class="step-formula" id="logic-step1">-</p>
+            <p class="step-explanation">Uses workload-specific calibration factor (k) to estimate equivalent Snowflake compute time on XS warehouse.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Calculate Concurrent Workload Need</h4>
+            <p class="step-formula" id="logic-step2">-</p>
+            <p class="step-explanation">Accounts for parallel jobs that must run simultaneously during the batch window.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Select Warehouse Size</h4>
+            <p class="step-formula" id="logic-step3">-</p>
+            <p class="step-explanation">Chooses the smallest warehouse size that can complete the workload within the batch window constraint.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h4>Calculate Daily Warehouse Credits</h4>
+            <p class="step-formula" id="logic-step4">-</p>
+            <p class="step-explanation">Multiplies actual warehouse hours by the credit consumption rate for the selected size.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h4>Calculate Cloud Services Credits (10% Rule)</h4>
+            <p class="step-formula" id="logic-step5">-</p>
+            <p class="step-explanation">Cloud services are capped at 10% of warehouse credits, with an additional cap based on warehouse hours.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <h4>Calculate Serverless Credits</h4>
+            <p class="step-formula" id="logic-step6">-</p>
+            <p class="step-explanation">Includes Snowpipe file processing and Task overhead based on usage patterns.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">7</div>
+          <div class="step-content">
+            <h4>Calculate Monthly Credits</h4>
+            <p class="step-formula" id="logic-step7">-</p>
+            <p class="step-explanation">Multiplies daily credits by monthly frequency and adds search optimization credits.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">8</div>
+          <div class="step-content">
+            <h4>Calculate Compute Costs</h4>
+            <p class="step-formula" id="logic-step8">-</p>
+            <p class="step-explanation">Converts total credits to dollars using region and edition-specific pricing.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">9</div>
+          <div class="step-content">
+            <h4>Add Storage Costs</h4>
+            <p class="step-formula" id="logic-step9">-</p>
+            <p class="step-explanation">Charges for data at rest based on uncompressed TB storage.</p>
+          </div>
+        </div>
+
+        <div class="logic-step">
+          <div class="step-number">10</div>
+          <div class="step-content">
+            <h4>Add Data Transfer Costs</h4>
+            <p class="step-formula" id="logic-step10">-</p>
+            <p class="step-explanation">Egress charges vary by transfer route (intra-region, inter-region, or internet).</p>
+          </div>
+        </div>
+
+        <div class="logic-step final-step">
+          <div class="step-number">✓</div>
+          <div class="step-content">
+            <h4>Grand Total</h4>
+            <p class="step-formula" id="logic-step11">-</p>
+            <p class="step-explanation">Sum of compute, storage, and transfer costs for complete monthly budget.</p>
+          </div>
+        </div>
+      </div>
+      </details>
+    </section>
+
+    <section id="results" class="card" style="display:none;">
+      <h2>Results</h2>
+      <p class="section-desc">Estimated Snowflake costs based on your inputs</p>
+      
+      <h3 class="subsection-title">Warehouse Configuration</h3>
+      <div class="grid">
+        <label>Recommended Size
+          <div class="result-value" id="result-size">-</div>
+        </label>
+        <label>Warehouse Hours/Day
+          <div class="result-value" id="result-wh-hours">-</div>
+        </label>
+        <label>Warehouse Credits/Day
+          <div class="result-value" id="result-wh-credits">-</div>
+        </label>
+        <label id="result-cluster-count-label" style="display:none;">Number of Clusters
+          <div class="result-value" id="result-cluster-count">-</div>
+        </label>
+      </div>
+
+      <h3 class="subsection-title">Daily Credits Breakdown</h3>
+      <div class="grid">
+        <label>Cloud Services Credits/Day
+          <div class="result-value" id="result-cs-credits">-</div>
+        </label>
+        <label>Serverless Credits/Day
+          <div class="result-value" id="result-serverless-credits">-</div>
+        </label>
+        <label>Total Monthly Credits
+          <div class="result-value" id="result-monthly-credits">-</div>
+        </label>
+      </div>
+
+      <h3 class="subsection-title">Monthly Cost Breakdown (USD)</h3>
+      <div class="grid">
+        <label>Compute Cost
+          <div class="result-value" id="result-compute">-</div>
+        </label>
+        <label>Storage Cost
+          <div class="result-value" id="result-storage">-</div>
+        </label>
+        <label>Transfer Cost
+          <div class="result-value" id="result-transfer">-</div>
+        </label>
+      </div>
+
+      <h3 class="subsection-title">Total Estimated Cost</h3>
+      <div class="result-total">
+        <div class="total-label">Grand Total (USD/month)</div>
+        <div class="total-value" id="result-grand-total">$0.00</div>
+      </div>
+      <div class="result-total" style="margin-top: 12px;">
+        <div class="total-label">Grand Total (USD/year)</div>
+        <div class="total-value" id="result-grand-total-year">$0.00</div>
+      </div>
+
+      <details class="raw-json">
+        <summary>View Raw JSON</summary>
+        <pre id="out"></pre>
+      </details>
+    </section>
+
+    <footer>
+      <p>Offline tool. All pricing is local config. Replace with your official tables.</p>
+      <p>
+        <a href="https://github.com/JoshKCIT/db2_to_snowflake_cost_calculator" target="_blank" rel="noopener noreferrer">View on GitHub</a> | 
+        Copyright (c) 2025 JoshKCIT | 
+        <a href="LICENSE">MIT License</a>
+      </p>
+    </footer>
+    </div>
+
+    <div id="configuration-tab" class="tab-content">
+      <h1>Configuration Editor</h1>
+      <p class="section-desc">Edit pricing, rules, and calibration settings. Changes are saved automatically to your browser's local storage.</p>
+      
+      <div class="config-actions">
+        <button id="reset-config">Reset to Default</button>
+        <button id="export-config">Export Config</button>
+        <button id="import-config">Import Config</button>
+        <input type="file" id="import-file" accept=".json" style="display: none;">
+      </div>
+
+      <!-- Pricing Configuration -->
+      <section class="card config-section">
+        <h2>Pricing Configuration</h2>
+        <div class="config-subsection">
+          <h3>Regions</h3>
+          <div class="config-controls">
+            <button class="add-item-btn" data-type="region">Add Region</button>
+          </div>
+          <div id="regions-list" class="config-list"></div>
+        </div>
+        <div class="config-subsection">
+          <h3>Serverless Pricing</h3>
+          <div id="serverless-config" class="config-form"></div>
+        </div>
+      </section>
+
+      <!-- Rules Configuration -->
+      <section class="card config-section">
+        <h2>Rules Configuration</h2>
+        <div class="config-subsection">
+          <h3>Warehouse Credits Per Hour</h3>
+          <div id="warehouse-credits-config" class="config-form"></div>
+        </div>
+        <div class="config-subsection">
+          <h3>Size Factors</h3>
+          <div id="size-factors-config" class="config-form"></div>
+        </div>
+        <div class="config-subsection">
+          <h3>Cloud Services</h3>
+          <div id="cloud-services-config" class="config-form"></div>
+        </div>
+      </section>
+
+      <!-- Calibration Configuration -->
+      <section class="card config-section">
+        <h2>Calibration Configuration</h2>
+        <div class="config-subsection">
+          <h3>Workload Families</h3>
+          <div class="config-controls">
+            <button class="add-item-btn" data-type="workload">Add Workload Family</button>
+          </div>
+          <div id="workload-families-list" class="config-list"></div>
+        </div>
+        <div class="config-subsection">
+          <h3>Default Family</h3>
+          <div id="default-family-config" class="config-form"></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="calculation-logic-tab" class="tab-content">
+      <h1>Calculation Logic & Methodology</h1>
+      <p class="section-desc">Detailed explanation of how Db2 for z/OS metrics are used to calculate Snowflake costs. This section helps DBAs and Solution Architects validate the calculation methodology.</p>
+
+      <section class="card">
+        <h2>Overview</h2>
+        <p>This calculator translates Db2 for z/OS mainframe workload metrics into equivalent Snowflake compute requirements using a calibration-based approach. Each Db2 for z/OS metric serves a specific purpose in determining the optimal Snowflake warehouse size and associated costs.</p>
+        <p><strong>Key Principle:</strong> We convert Db2 for z/OS CPU time to Snowflake XS-equivalent hours using workload-specific calibration factors (k-values), then select the smallest warehouse size that can complete the workload within the batch window.</p>
+      </section>
+
+      <section class="card">
+        <h2>Db2 for z/OS DBA Inputs: Usage & Rationale</h2>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>1. Db2 for z/OS CPU Seconds/Day</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Primary Formula:</strong> <code>XS Hours = (Db2 for z/OS CPU seconds/day × k) / 3600</code></li>
+            <li>This is the foundation metric that represents your workload's compute intensity</li>
+            <li>Multiplied by the calibration factor (k) to account for workload-specific performance characteristics</li>
+            <li>Divided by 3600 to convert seconds to hours</li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>CPU time is workload-agnostic:</strong> Unlike elapsed time, CPU time measures actual processing work regardless of I/O wait, contention, or system load</li>
+            <li><strong>Standardized measurement:</strong> Db2 for z/OS CPU seconds are consistently measured across different mainframe configurations and environments</li>
+            <li><strong>Direct compute correlation:</strong> Snowflake warehouses are sized by compute capacity, making CPU time the most direct translation metric</li>
+            <li><strong>Available in SMF:</strong> Db2 for z/OS CPU time is readily available in SMF Type 101 records (IFCID 0003), making it accessible to DBAs</li>
+          </ul>
+          <p><strong>Example:</strong> 72,000 CPU seconds/day × 1.8 (ELT batch k-factor) ÷ 3600 = 36 XS-equivalent hours/day</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>2. Batch Window (Hours)</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Size Selection Constraint:</strong> Determines the minimum warehouse size required</li>
+            <li><strong>Formula:</strong> <code>Warehouse Hours = (XS Hours × Concurrency) / Size Factor</code></li>
+            <li>The calculator selects the smallest warehouse size where: <code>Warehouse Hours ≤ Batch Window</code></li>
+            <li>Larger warehouses have higher size factors (2×, 4×, 8×, etc.), allowing the same work to complete in less time</li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>SLA requirement:</strong> Batch windows represent real business constraints (e.g., "EOD batch must complete by 6 AM")</li>
+            <li><strong>Cost optimization:</strong> By selecting the smallest warehouse that meets the window, we minimize costs while ensuring SLA compliance</li>
+            <li><strong>Real-world constraint:</strong> Unlike theoretical capacity planning, batch windows reflect actual operational requirements</li>
+            <li><strong>Size factor leverage:</strong> Snowflake's size factors (2×, 4×, 8×, etc.) allow us to trade warehouse size for runtime, making the window critical</li>
+          </ul>
+          <p><strong>Example:</strong> If you need 36 XS hours but only have a 4-hour window, you need at least a Medium warehouse (4× faster): 36 ÷ 4 = 9 hours, which fits in 4 hours? No. Try Large (8×): 36 ÷ 8 = 4.5 hours, still too much. Try XL (16×): 36 ÷ 16 = 2.25 hours ✅</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>3. Concurrency (Jobs)</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Parallelism Multiplier:</strong> <code>Total Need = XS Hours × Concurrency</code></li>
+            <li>Represents jobs that must run simultaneously, not sequentially</li>
+            <li>Affects warehouse size selection: higher concurrency requires larger warehouses or longer runtime</li>
+            <li><strong>Formula Impact:</strong> <code>Warehouse Hours = (XS Hours × Concurrency) / Size Factor</code></li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>Real parallelism:</strong> Unlike sequential job scheduling, concurrent jobs require simultaneous compute resources</li>
+            <li><strong>Warehouse sizing:</strong> Snowflake warehouses can handle concurrent queries, but the total compute need increases linearly with concurrency</li>
+            <li><strong>Cost impact:</strong> Higher concurrency may require larger warehouses, directly impacting costs</li>
+            <li><strong>Operational reality:</strong> Reflects actual job scheduling patterns (e.g., "3 ETL streams run in parallel")</li>
+          </ul>
+          <p><strong>Example:</strong> 36 XS hours with 2 concurrent jobs = 72 XS-equivalent hours needed. With a 4-hour window, you need XL warehouse (16×): 72 ÷ 16 = 4.5 hours... still tight. Try 2XL (32×): 72 ÷ 32 = 2.25 hours ✅</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>4. Uncompressed TB at Rest</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Storage Cost Calculation:</strong> <code>Storage Cost = TB × Storage Rate/TB/Month</code></li>
+            <li>Directly multiplied by region-specific storage pricing</li>
+            <li>Also used for Time Travel and Fail-safe storage calculations (if specified)</li>
+            <li>Does NOT affect compute sizing—storage and compute are separate in Snowflake</li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>Snowflake storage model:</strong> Snowflake charges for storage separately from compute, so data size directly maps to storage costs</li>
+            <li><strong>Uncompressed size:</strong> We use uncompressed size because Snowflake applies its own compression (typically 3-5×), and pricing is based on uncompressed data</li>
+            <li><strong>Predictable cost:</strong> Storage costs are linear and predictable, unlike compute which varies with usage</li>
+            <li><strong>Db2 catalog source:</strong> Available from Db2 for z/OS catalog tables (SYSTABLESPACE, SYSTABLEPART) via RUNSTATS</li>
+          </ul>
+          <p><strong>Note:</strong> Storage size does NOT influence warehouse selection—a 1 TB database can require a 4XL warehouse if compute-intensive, while a 100 TB database might only need XS if queries are simple.</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>5. Runs per Month</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Monthly Credit Calculation:</strong> <code>Monthly Credits = Daily Credits × Runs per Month</code></li>
+            <li>Multiplies daily compute costs by execution frequency</li>
+            <li>Applies to warehouse credits, Cloud Services credits, and serverless credits</li>
+            <li>Does NOT affect warehouse size selection (size is based on single-run requirements)</li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>Frequency multiplier:</strong> Snowflake charges per hour of warehouse runtime, so more frequent runs = higher monthly costs</li>
+            <li><strong>Budget planning:</strong> Essential for accurate monthly/annual cost projections</li>
+            <li><strong>Operational schedule:</strong> Reflects actual job scheduling (daily = 30/month, weekly = 4/month, hourly = 720/month)</li>
+            <li><strong>Cost optimization opportunity:</strong> Understanding frequency helps identify consolidation opportunities</li>
+          </ul>
+          <p><strong>Example:</strong> If daily credits = 100 and runs = 30/month, monthly credits = 3,000. If runs = 1/month (month-end only), monthly credits = 100.</p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3>6. Workload Family</h3>
+          <p><strong>How it's used:</strong></p>
+          <ul>
+            <li><strong>Calibration Factor Selection:</strong> Determines the k-value used in the conversion formula</li>
+            <li><strong>Formula:</strong> <code>XS Hours = (Db2 for z/OS CPU seconds × k) / 3600</code></li>
+            <li>Different workload types have different k-values:
+              <ul>
+                <li><strong>ELT Batch:</strong> k = 1.8 (transformation-heavy, moderate overhead)</li>
+                <li><strong>Reporting:</strong> k = 2.4 (query-heavy, higher Snowflake overhead for complex analytics)</li>
+                <li><strong>CDC:</strong> k = 1.2 (simple incremental loads, minimal overhead)</li>
+              </ul>
+            </li>
+          </ul>
+          <p><strong>Why this metric:</strong></p>
+          <ul>
+            <li><strong>Workload-specific performance:</strong> Different workload types have different performance characteristics in Snowflake vs DB2</li>
+            <li><strong>Calibration accuracy:</strong> k-values are derived from empirical testing and account for:
+              <ul>
+                <li>Query optimization differences (Snowflake's optimizer vs DB2)</li>
+                <li>Data model differences (columnar vs row-based storage)</li>
+                <li>Network overhead (cloud vs on-premise)</li>
+                <li>Transformation complexity (ELT patterns differ from ETL)</li>
+              </ul>
+            </li>
+            <li><strong>Empirical basis:</strong> k-values should be calibrated based on actual migration testing (see <a href="./docs/calibration_guide.html">Calibration Guide</a>)</li>
+            <li><strong>Cost accuracy:</strong> Using the correct k-value ensures accurate cost estimates</li>
+          </ul>
+          <p><strong>Calibration Note:</strong> Default k-values are starting points. Organizations should calibrate these values based on their specific workloads after initial migration testing.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Complete Calculation Flow</h2>
+        <p>Understanding the end-to-end calculation process helps validate each step:</p>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 1: Convert Db2 for z/OS CPU to Snowflake XS Hours</h3>
+          <p><strong>Formula:</strong> <code>XS Hours = (Db2 for z/OS CPU seconds/day × k) / 3600</code></p>
+          <p><strong>Purpose:</strong> Translate Db2 for z/OS compute time to Snowflake's baseline warehouse size (XS)</p>
+          <p><strong>Why XS as baseline:</strong> XS is Snowflake's smallest warehouse size, providing a consistent reference point. All other sizes are multiples of XS capacity.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 2: Account for Concurrent Workload</h3>
+          <p><strong>Formula:</strong> <code>Total Need = XS Hours × Concurrency</code></p>
+          <p><strong>Purpose:</strong> Calculate total compute requirement when multiple jobs run simultaneously</p>
+          <p><strong>Example:</strong> 36 XS hours with 2 concurrent jobs = 72 XS-equivalent hours needed</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 3: Select Optimal Warehouse Size</h3>
+          <p><strong>Formula:</strong> <code>Warehouse Hours = Total Need / Size Factor</code></p>
+          <p><strong>Selection Logic:</strong> Choose smallest size where <code>Warehouse Hours ≤ Batch Window</code></p>
+          <p><strong>Size Factors:</strong> XS=1×, S=2×, M=4×, L=8×, XL=16×, 2XL=32×, 3XL=64×, 4XL=128×</p>
+          <p><strong>Why smallest size:</strong> Minimizes costs while meeting SLA requirements. Larger warehouses cost more per hour but complete work faster.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 4: Calculate Warehouse Credits</h3>
+          <p><strong>Formula:</strong> <code>Warehouse Credits/Day = Warehouse Hours × Credits/Hour</code></p>
+          <p><strong>Multi-Cluster:</strong> If multi-cluster warehouse, multiply by cluster count</p>
+          <p><strong>Credits per Hour:</strong> XS=1.35, S=2.7, M=5.4, L=10.8, XL=21.6, 2XL=43.2, 3XL=86.4, 4XL=172.8</p>
+          <p><strong>Why credits:</strong> Snowflake uses a credit-based billing model. Credits consumed = compute cost.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 5: Calculate Cloud Services Credits</h3>
+          <p><strong>Formula:</strong> <code>CS Credits/Day = min(4.4 × Warehouse Hours, Waiver% × Warehouse Credits)</code></p>
+          <p><strong>Waiver Rule:</strong> Cloud Services are waived if ≤ 10% of warehouse credits (configurable)</p>
+          <p><strong>Why Cloud Services:</strong> Snowflake charges for metadata operations, query compilation, and coordination. The 10% waiver reflects typical usage patterns.</p>
+          <p><strong>Cap:</strong> Maximum CS credits = 4.4 credits/hour × warehouse hours (prevents runaway costs)</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 6: Calculate Serverless Credits</h3>
+          <p><strong>Components:</strong></p>
+          <ul>
+            <li><strong>Snowpipe:</strong> Edition-specific (Std/Ent: files + compute; BC/VPS: per-GB)</li>
+            <li><strong>Search Optimization:</strong> Compute hours × (2 compute + 1 Cloud Services multipliers)</li>
+            <li><strong>Tasks:</strong> Task hours × (0.9 compute + 1 Cloud Services multipliers)</li>
+          </ul>
+          <p><strong>Why serverless:</strong> These features run independently of warehouses and have their own pricing models.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 7: Calculate Monthly Credits</h3>
+          <p><strong>Formula:</strong> <code>Monthly Credits = (WH Credits + CS Credits + Serverless Credits) × Runs/Month</code></p>
+          <p><strong>Purpose:</strong> Scale daily costs to monthly based on execution frequency</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 8: Calculate Compute Cost</h3>
+          <p><strong>Formula:</strong> <code>Compute Cost = Monthly Credits × Price/Credit(Region, Edition)</code></p>
+          <p><strong>Edition Impact:</strong> Standard ($2/credit), Enterprise ($3/credit), Business Critical ($4/credit), VPS ($6/credit)</p>
+          <p><strong>Why edition matters:</strong> Higher editions provide additional features (security, compliance, isolation) at higher cost.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 9: Calculate Storage Cost</h3>
+          <p><strong>Formula:</strong> <code>Storage Cost = (Regular TB + Time Travel TB + Fail-safe TB) × Storage Rate/TB/Month</code></p>
+          <p><strong>Why separate:</strong> Storage is independent of compute—you pay for data at rest regardless of query activity.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 10: Calculate Transfer Cost</h3>
+          <p><strong>Formula:</strong> <code>Transfer Cost = Egress TB × Egress Rate(Route)</code></p>
+          <p><strong>Route Types:</strong> Intra-region ($0), Inter-region ($20/TB), Internet ($90/TB), Cross-cloud (varies)</p>
+          <p><strong>Why egress:</strong> Snowflake charges for data leaving their platform, not for data ingress.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3>Step 11: Grand Total</h3>
+          <p><strong>Formula:</strong> <code>Total Cost = Compute + Storage + Transfer</code></p>
+          <p><strong>Purpose:</strong> Complete monthly cost estimate for budget planning</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Why These Metrics?</h2>
+        <p><strong>Design Philosophy:</strong> This calculator uses metrics that are:</p>
+        <ul>
+          <li><strong>Available in Db2 for z/OS:</strong> All inputs can be obtained from standard Db2 for z/OS monitoring and catalog sources</li>
+          <li><strong>Directly translatable:</strong> Each metric maps to a specific Snowflake cost component</li>
+          <li><strong>Operationally relevant:</strong> Reflects real business constraints (batch windows, SLAs)</li>
+          <li><strong>Calibration-friendly:</strong> Allows organizations to refine estimates based on actual migration experience</li>
+        </ul>
+        <p><strong>What we DON'T use (and why):</strong></p>
+        <ul>
+          <li><strong>Elapsed time:</strong> Too dependent on system load, I/O wait, and contention—not representative of actual compute need</li>
+          <li><strong>Transaction volume:</strong> Doesn't directly correlate to compute requirements (simple transactions vs complex analytics)</li>
+          <li><strong>User count:</strong> Not relevant for batch workloads; for interactive workloads, use reporting workload family</li>
+          <li><strong>Peak vs average:</strong> We use daily totals because batch workloads are typically consistent day-to-day</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Validation Checklist</h2>
+        <p>Use this checklist to validate calculations:</p>
+        <ul>
+          <li>✅ Db2 for z/OS CPU seconds are from SMF Type 101 (IFCID 0003) for the specific workload</li>
+          <li>✅ Batch window reflects actual SLA requirements, not current runtime</li>
+          <li>✅ Concurrency represents simultaneous jobs, not total jobs in the batch cycle</li>
+          <li>✅ Uncompressed TB includes all tables, indexes, and staging areas</li>
+          <li>✅ Runs per month matches actual job schedule</li>
+          <li>✅ Workload family matches the primary workload type (consider splitting mixed workloads)</li>
+          <li>✅ Selected warehouse size completes work within batch window</li>
+          <li>✅ Cloud Services credits are ≤ 10% of warehouse credits (waiver rule)</li>
+          <li>✅ Monthly credits = daily credits × runs/month</li>
+          <li>✅ Storage costs are separate from compute costs</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>References</h2>
+        <ul>
+          <li><a href="./docs/Snowflake_Service_Consumption_CursorReady.md">Snowflake Service Consumption Reference</a></li>
+          <li><a href="./docs/calibration_guide.html">Calibration Guide</a> - How to refine k-values</li>
+          <li><a href="./docs/db2_dba_how_to_use.html">Db2 for z/OS DBA Guide</a> - Where to find Db2 for z/OS metrics</li>
+          <li><a href="./docs/snowflake_architects_how_to_use.html">Snowflake Architect Guide</a> - Snowflake configuration details</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>This calculation methodology is based on Snowflake's official Service Consumption documentation and empirical calibration data.</p>
+        <p>
+          <a href="https://github.com/JoshKCIT/db2_to_snowflake_cost_calculator" target="_blank" rel="noopener noreferrer">View on GitHub</a> | 
+          Copyright (c) 2025 JoshKCIT | 
+          <a href="LICENSE">MIT License</a>
+        </p>
+      </footer>
+    </div>
+  </div>
+
+  <script src="./js/config-editor.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
+

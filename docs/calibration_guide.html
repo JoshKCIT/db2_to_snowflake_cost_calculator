@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Calibration Guide - Snowflake Budget Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <h1>Calibration Guide (k values)</h1>
+    <p><a href="../index.html">← Back to Calculator</a> | <a href="./db2_dba_how_to_use.html">← Back to DBA Guide</a></p>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <p><strong>Goal:</strong> Derive <code>k</code> for each workload family, where:</p>
+      <pre>k = XS_seconds_on_Snowflake / Db2_for_zOS_CPU_seconds</pre>
+      <p>(for the same workload)</p>
+      <p>The <strong>k</strong> value represents the conversion factor between Db2 for z/OS CPU seconds and Snowflake XS warehouse seconds. This calibration ensures accurate cost estimates for your specific workload characteristics.</p>
+    </section>
+
+    <section class="card">
+      <h2>Calibration Steps</h2>
+      <ol>
+        <li><strong>Pick a representative job</strong> for the workload family (e.g., ELT batch, reporting, or CDC).</li>
+        <li><strong>Obtain Db2 for z/OS CPU seconds/day</strong> from SMF/IFCID records (see the <a href="./db2_dba_how_to_use.html">DBA Guide</a> for details).</li>
+        <li><strong>Run the equivalent Snowflake flow once</strong> on an <strong>XS</strong> warehouse.</li>
+        <li><strong>Record total credits consumed</strong> and <strong>elapsed hours</strong> on Snowflake.</li>
+        <li><strong>Compute XS hours:</strong>
+          <pre>xs_hours = credits / creditsPerHour["XS"]</pre>
+          <p>Use the <code>creditsPerHour["XS"]</code> value from <code>config/rules.json</code></p>
+        </li>
+        <li><strong>Compute k value:</strong>
+          <pre>k = (xs_hours * 3600) / db2_cpu_seconds</pre>
+        </li>
+        <li><strong>Store the value</strong> in <code>config/calibration.json</code> under that workload family.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Example Calibration</h2>
+      <p><strong>Scenario:</strong> Calibrating an ELT batch workload</p>
+      <ul>
+        <li><strong>Db2 for z/OS CPU seconds:</strong> 7,200 seconds (for a representative job)</li>
+        <li><strong>Snowflake XS run:</strong> Consumed 3.6 credits in 2.67 hours (2 hours 40 minutes)</li>
+        <li><strong>Calculate XS hours:</strong> 3.6 credits ÷ 1.35 credits/hour = 2.67 hours</li>
+        <li><strong>Calculate k:</strong> (2.67 × 3600) ÷ 7200 = 1.335</li>
+        <li><strong>Result:</strong> For this ELT batch workload, k = 1.335</li>
+      </ul>
+      <p><strong>Update config/calibration.json:</strong></p>
+      <pre>{
+  "workloadFamilies": {
+    "elt_batch": { 
+      "k_xs_seconds_per_db2_cpu_second": 1.335, 
+      "notes": "Calibrated from nightly ETL job on 2025-11-12"
+    },
+    ...
+  },
+  "defaultFamily": "elt_batch"
+}</pre>
+    </section>
+
+    <section class="card">
+      <h2>Guardrail: Detect Workload Drift</h2>
+      <p>On each calculator run, the tool back-solves to compute an observed k value:</p>
+      <pre>k_observed = (wh_hours_day * sizeFactor[size] / max(1, concurrency)) * 3600 / db2_cpu_seconds_per_day</pre>
+      <p>The calculator should warn if the deviation is significant:</p>
+      <pre>if |k_observed − k| / k > 0.20:
+    warn("Workload drift detected or wrong family selected")</pre>
+      <p>This helps identify when:</p>
+      <ul>
+        <li>The workload characteristics have changed significantly</li>
+        <li>The wrong workload family was selected</li>
+        <li>Re-calibration is needed</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Workload Families</h2>
+      <p>Maintain separate k values for each workload type:</p>
+      <h3>ELT Batch</h3>
+      <ul>
+        <li>Extract-Load-Transform batch jobs</li>
+        <li>Heavy transformations and aggregations</li>
+        <li>Typically has higher k values due to complex processing</li>
+      </ul>
+
+      <h3>Reporting</h3>
+      <ul>
+        <li>Query/reporting workloads</li>
+        <li>SELECT-heavy operations</li>
+        <li>Aggregations and analytics</li>
+        <li>May have higher k values if queries are complex</li>
+      </ul>
+
+      <h3>CDC (Change Data Capture)</h3>
+      <ul>
+        <li>Incremental data synchronization</li>
+        <li>Small frequent loads</li>
+        <li>Typically has lower k values due to simpler operations</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Best Practices</h2>
+      <ul>
+        <li><strong>Keep families separate:</strong> Maintain distinct k values for ELT, reporting, and CDC workloads.</li>
+        <li><strong>Use representative jobs:</strong> Choose typical workloads, not outliers or edge cases.</li>
+        <li><strong>Document your calibrations:</strong> Add notes to the calibration.json file with dates and context.</li>
+        <li><strong>Re-calibrate periodically:</strong> Update k values after significant schema or pipeline changes.</li>
+        <li><strong>Validate with multiple samples:</strong> Run several representative jobs to ensure k value accuracy.</li>
+        <li><strong>Start with XS warehouse:</strong> Always calibrate using XS warehouse to establish the baseline.</li>
+        <li><strong>Monitor deviations:</strong> Pay attention to drift warnings and investigate causes.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Troubleshooting</h2>
+      <h3>K value seems too high or too low</h3>
+      <ul>
+        <li>Verify that you used an XS warehouse for calibration</li>
+        <li>Check that the Db2 for z/OS CPU seconds match the exact workload tested</li>
+        <li>Ensure credits consumed include only the test workload, not other concurrent jobs</li>
+      </ul>
+
+      <h3>Large deviation warnings</h3>
+      <ul>
+        <li>Review if workload characteristics have changed</li>
+        <li>Verify the correct workload family is selected</li>
+        <li>Consider re-calibrating with a fresh test run</li>
+      </ul>
+
+      <h3>Inconsistent results</h3>
+      <ul>
+        <li>Ensure consistent measurement of Db2 for z/OS CPU seconds (use same SMF fields)</li>
+        <li>Run multiple calibration tests and average the k values</li>
+        <li>Check for background processes affecting Snowflake measurements</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p><a href="../index.html">← Back to Calculator</a> | <a href="./db2_dba_how_to_use.html">← Back to DBA Guide</a></p>
+    </footer>
+  </div>
+</body>
+</html>
+

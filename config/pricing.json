@@ -1,0 +1,330 @@
+{
+  "regions": {
+    "aws-us-east-1": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "US East (Northern Virginia)"
+    },
+    "aws-us-west-2": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "US West (Oregon)"
+    },
+    "aws-eu-dublin": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "EU Dublin"
+    },
+    "aws-eu-frankfurt": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 24.50,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "EU Frankfurt"
+    },
+    "aws-ap-sydney": {
+      "pricePerCredit": { "standard": 2.75, "enterprise": 4.05, "business_critical": 5.50, "vps": 8.25 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 140.00, "crossCloud": 140.00, "internet": 140.00, "accountTransfer": 140.00 },
+      "displayName": "AP Sydney"
+    },
+    "aws-ap-singapore": {
+      "pricePerCredit": { "standard": 2.50, "enterprise": 3.70, "business_critical": 5.00, "vps": 7.50 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 90.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 90.00 },
+      "displayName": "AP Singapore"
+    },
+    "aws-canada-central": {
+      "pricePerCredit": { "standard": 2.25, "enterprise": 3.50, "business_critical": 4.50, "vps": 6.75 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "Canada Central"
+    },
+    "aws-us-east-2": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "US East 2 (Ohio)"
+    },
+    "aws-ap-northeast-1-tokyo": {
+      "pricePerCredit": { "standard": 2.85, "enterprise": 4.30, "business_critical": 5.70, "vps": 8.55 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 90.00, "crossCloud": 114.00, "internet": 114.00, "accountTransfer": 90.00 },
+      "displayName": "AP Northeast 1 (Tokyo)"
+    },
+    "aws-ap-mumbai": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 60.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 60.00 },
+      "displayName": "AP Mumbai"
+    },
+    "aws-us-east-1-commercial-gov": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 4.80, "vps": 7.20 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "US East 1 Commercial Gov"
+    },
+    "aws-europe-london": {
+      "pricePerCredit": { "standard": 2.70, "enterprise": 4.00, "business_critical": 5.40, "vps": 8.10 },
+      "storagePerTBMonth": 24.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "Europe (London)"
+    },
+    "aws-asia-pacific-seoul": {
+      "pricePerCredit": { "standard": 2.75, "enterprise": 4.05, "business_critical": 5.50, "vps": 8.25 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 126.00, "internet": 126.00, "accountTransfer": 80.00 },
+      "displayName": "Asia Pacific (Seoul)"
+    },
+    "aws-us-gov-west-1": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 30.00, "crossCloud": 155.00, "internet": 155.00, "accountTransfer": 30.00 },
+      "displayName": "US Gov West 1"
+    },
+    "aws-us-gov-west-1-fedramp-high-plus": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 30.00, "crossCloud": 155.00, "internet": 155.00, "accountTransfer": 30.00 },
+      "displayName": "US Gov West 1 (Fedramp High Plus)"
+    },
+    "aws-europe-stockholm": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "Europe (Stockholm)"
+    },
+    "aws-asia-pacific-osaka": {
+      "pricePerCredit": { "standard": 2.85, "enterprise": 4.30, "business_critical": 5.70, "vps": 8.55 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 90.00, "crossCloud": 114.00, "internet": 114.00, "accountTransfer": 90.00 },
+      "displayName": "Asia Pacific (Osaka)"
+    },
+    "aws-south-america-east-1-sao-paulo": {
+      "pricePerCredit": { "standard": 3.10, "enterprise": 4.65, "business_critical": 6.20, "vps": 9.30 },
+      "storagePerTBMonth": 40.50,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 138.00, "crossCloud": 150.00, "internet": 150.00, "accountTransfer": 138.00 },
+      "displayName": "South America East 1 (São Paulo)"
+    },
+    "aws-eu-paris": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 24.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "EU (Paris)"
+    },
+    "aws-asia-pacific-jakarta": {
+      "pricePerCredit": { "standard": 2.50, "enterprise": 3.70, "business_critical": 5.00, "vps": 7.50 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 100.00, "crossCloud": 132.00, "internet": 132.00, "accountTransfer": 100.00 },
+      "displayName": "Asia Pacific (Jakarta)"
+    },
+    "aws-us-gov-east-1-fedramp-high-plus": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 30.00, "crossCloud": 155.00, "internet": 155.00, "accountTransfer": 30.00 },
+      "displayName": "US Gov East 1 (Fedramp High Plus)"
+    },
+    "aws-eu-zurich": {
+      "pricePerCredit": { "standard": 3.10, "enterprise": 4.65, "business_critical": 6.20, "vps": 9.30 },
+      "storagePerTBMonth": 26.95,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "EU (Zurich)"
+    },
+    "aws-us-gov-west-1-dod": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 30.00, "crossCloud": 155.00, "internet": 155.00, "accountTransfer": 30.00 },
+      "displayName": "US Gov West 1 (DoD)"
+    },
+    "aws-us-west-commercial-gov-oregon": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 4.80, "vps": 7.20 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 90.00, "internet": 90.00, "accountTransfer": 20.00 },
+      "displayName": "US West (Commercial Gov - Oregon)"
+    },
+    "aws-africa-cape-town": {
+      "pricePerCredit": { "standard": 2.80, "enterprise": 4.20, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 27.40,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 147.00, "crossCloud": 154.00, "internet": 154.00, "accountTransfer": 147.00 },
+      "displayName": "Africa (Cape Town)"
+    },
+    "azure-east-us-2": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "East US 2 (Virginia)"
+    },
+    "azure-west-us-2": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "West US 2 (Washington)"
+    },
+    "azure-west-europe": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "West Europe (Netherlands)"
+    },
+    "azure-australia-east": {
+      "pricePerCredit": { "standard": 2.75, "enterprise": 4.05, "business_critical": 5.50, "vps": 8.25 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 80.00 },
+      "displayName": "Australia East (New South Wales)"
+    },
+    "azure-canada-central": {
+      "pricePerCredit": { "standard": 2.25, "enterprise": 3.50, "business_critical": 4.50, "vps": 6.75 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "Canada Central (Toronto)"
+    },
+    "azure-southeast-asia": {
+      "pricePerCredit": { "standard": 2.50, "enterprise": 3.70, "business_critical": 5.00, "vps": 7.50 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 80.00 },
+      "displayName": "Southeast Asia (Singapore)"
+    },
+    "azure-switzerland-north": {
+      "pricePerCredit": { "standard": 3.10, "enterprise": 4.65, "business_critical": 6.20, "vps": 9.30 },
+      "storagePerTBMonth": 28.80,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "Switzerland North"
+    },
+    "azure-us-gov-virginia": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "US Gov Virginia"
+    },
+    "azure-central-us": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "US Central (Iowa)"
+    },
+    "azure-north-europe": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "North Europe (Ireland)"
+    },
+    "azure-japan-east": {
+      "pricePerCredit": { "standard": 2.85, "enterprise": 4.30, "business_critical": 5.70, "vps": 8.55 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 80.00 },
+      "displayName": "Japan East (Tokyo)"
+    },
+    "azure-uae-north": {
+      "pricePerCredit": { "standard": 2.70, "enterprise": 4.00, "business_critical": 5.40, "vps": 8.10 },
+      "storagePerTBMonth": 25.40,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 80.00 },
+      "displayName": "UAE North (Dubai)"
+    },
+    "azure-south-central-us": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "South Central US (Texas)"
+    },
+    "azure-central-india": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 40.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 40.00 },
+      "displayName": "Central India (Pune)"
+    },
+    "azure-uk-south": {
+      "pricePerCredit": { "standard": 2.70, "enterprise": 4.00, "business_critical": 5.40, "vps": 8.10 },
+      "storagePerTBMonth": 24.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "UK South (London)"
+    },
+    "azure-us-gov-virginia-fedramp-high-plus": {
+      "pricePerCredit": { "standard": null, "enterprise": null, "business_critical": 5.60, "vps": 8.40 },
+      "storagePerTBMonth": 39.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.50, "internet": 87.50, "accountTransfer": 20.00 },
+      "displayName": "US Gov Virginia (Fed Ramp High Plus)"
+    },
+    "azure-mexico-central": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.00, "internet": 87.00, "accountTransfer": 20.00 },
+      "displayName": "Mexico Central"
+    },
+    "azure-korea-central": {
+      "pricePerCredit": { "standard": 2.75, "enterprise": 4.05, "business_critical": 5.50, "vps": 8.25 },
+      "storagePerTBMonth": 25.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 80.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 80.00 },
+      "displayName": "Korea Central"
+    },
+    "azure-sweden-central": {
+      "pricePerCredit": { "standard": 2.40, "enterprise": 3.60, "business_critical": 4.80, "vps": 7.20 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 87.00, "internet": 87.00, "accountTransfer": 20.00 },
+      "displayName": "Sweden Central"
+    },
+    "gcp-us-central-1": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 20.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 20.00 },
+      "displayName": "US Central 1 (Iowa)"
+    },
+    "gcp-us-east-4": {
+      "pricePerCredit": { "standard": 2.00, "enterprise": 3.00, "business_critical": 4.00, "vps": 6.00 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 20.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 20.00 },
+      "displayName": "US East 4 (N. Virginia)"
+    },
+    "gcp-europe-west-4": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 20.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 50.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 50.00 },
+      "displayName": "Europe West 4 (Netherlands)"
+    },
+    "gcp-europe-west-2": {
+      "pricePerCredit": { "standard": 2.70, "enterprise": 4.00, "business_critical": 5.40, "vps": 8.10 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 50.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 50.00 },
+      "displayName": "Europe West 2 (London)"
+    },
+    "gcp-europe-west-3": {
+      "pricePerCredit": { "standard": 2.60, "enterprise": 3.90, "business_critical": 5.20, "vps": 7.80 },
+      "storagePerTBMonth": 23.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 50.00, "crossCloud": 120.00, "internet": 120.00, "accountTransfer": 50.00 },
+      "displayName": "Europe West 3 (Frankfurt)"
+    },
+    "gcp-middle-east-central-2": {
+      "pricePerCredit": { "standard": 3.25, "enterprise": 4.90, "business_critical": 6.50, "vps": 9.75 },
+      "storagePerTBMonth": 30.00,
+      "egressPerTB": { "intraRegion": 0.00, "interRegion": 110.00, "crossCloud": 190.00, "internet": 190.00, "accountTransfer": 110.00 },
+      "displayName": "Middle East Central 2 (Dammam)"
+    }
+  },
+  "serverless": {
+    "snowpipePer1000FilesCredits": 0.05,
+    "searchOptimizationPerTBMonthCredits": 1.00,
+    "tasksOverheadCreditsPerHour": 0.25,
+    "snowpipe": {
+      "standardEnterprise": {
+        "rateCreditsPer1000Files": 0.06,
+        "multiplierCompute": 1.25,
+        "multiplierCloudServices": 0
+      },
+      "businessCriticalVPS": {
+        "rateCreditsPerGB": 0.0037,
+        "multiplierCompute": 0,
+        "multiplierCloudServices": 0
+      }
+    },
+    "searchOptimization": {
+      "multiplierCompute": 2,
+      "multiplierCloudServices": 1,
+      "perTBMonthCredits": 1.00
+    },
+    "serverlessTasks": {
+      "multiplierCompute": 0.9,
+      "multiplierCloudServices": 1
+    }
+  }
+}
