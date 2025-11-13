@@ -1,8 +1,8 @@
 {
   "workloadFamilies": {
-    "elt_batch": { "k_xs_seconds_per_db2_cpu_second": 1.8, "notes": "placeholder" },
-    "reporting": { "k_xs_seconds_per_db2_cpu_second": 2.4, "notes": "placeholder" },
-    "cdc": { "k_xs_seconds_per_db2_cpu_second": 1.2, "notes": "placeholder" }
+    "elt_batch": { "k_xs_seconds_per_db2_cpu_second": 1.8, "notes": "See docs/calibration_guide.html#origin_of_default_k_values for methodology" },
+    "reporting": { "k_xs_seconds_per_db2_cpu_second": 2.4, "notes": "See docs/calibration_guide.html#origin_of_default_k_values for methodology" },
+    "cdc": { "k_xs_seconds_per_db2_cpu_second": 1.2, "notes": "See docs/calibration_guide.html#origin_of_default_k_values for methodology" }
   },
   "defaultFamily": "elt_batch"
 }

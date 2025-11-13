@@ -72,7 +72,7 @@ python scripts/cli.py \
 
 ### Scenario 1: Initial Migration Estimate
 **Goal:** Get a rough budget estimate for migrating Db2 for z/OS workloads to Snowflake
-- Use default k-values as starting point
+- Use [default k-values](docs/calibration_guide.html#origin_of_default_k_values) as starting point
 - Run multiple scenarios with different warehouse sizes
 - Compare costs across regions/editions
 

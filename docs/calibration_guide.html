@@ -24,7 +24,7 @@
       
       <p>This calibration ensures accurate cost estimates by accounting for performance differences between your mainframe Db2 environment and Snowflake's cloud architecture. Without proper calibration, cost estimates can be significantly inaccurate—potentially off by 50% or more.</p>
       
-      <p><strong>Default k-values</strong> (starting points—should be calibrated for your environment):</p>
+      <p><strong><a href="#origin_of_default_k_values">Default k-values</a></strong> (starting points—should be calibrated for your environment):</p>
       <ul>
         <li><strong>ELT Batch:</strong> k = 1.8 (transformation-heavy workloads)</li>
         <li><strong>Reporting:</strong> k = 2.4 (query-heavy analytical workloads)</li>
@@ -32,6 +32,60 @@
       </ul>
       
       <p><strong>Key Insight:</strong> The k-factor is not a universal constant—it's specific to your workload type, data patterns, and migration approach. That's why calibration is essential for accurate cost estimates.</p>
+    </section>
+
+    <section class="card" id="origin_of_default_k_values">
+      <h2>Origin of Default k-Values</h2>
+      <p><strong>Transparency Note:</strong> The default k-values (CDC: 1.2, ELT Batch: 1.8, Reporting: 2.4) are <strong>starting point estimates</strong> based on general observations of workload performance patterns between Db2 for z/OS and Snowflake. They are not derived from comprehensive empirical studies or vendor-provided benchmarks.</p>
+      
+      <h3>Methodology and Rationale</h3>
+      <p>These values were established based on the following reasoning:</p>
+      
+      <ul>
+        <li><strong>Relative Performance Patterns:</strong> The values reflect observed patterns where:
+          <ul>
+            <li>Simple, incremental workloads (CDC) tend to perform relatively well in Snowflake's columnar architecture, resulting in lower k-values (~1.2)</li>
+            <li>Transformation-heavy batch workloads (ELT) have moderate overhead due to SQL complexity and architectural differences (~1.8)</li>
+            <li>Complex analytical queries (Reporting) often require more compute due to query optimization differences and columnar processing overhead (~2.4)</li>
+          </ul>
+        </li>
+        <li><strong>Architectural Considerations:</strong> The values attempt to account for:
+          <ul>
+            <li>Columnar vs row-based storage differences</li>
+            <li>Query optimizer behavior differences</li>
+            <li>Network overhead in cloud architectures</li>
+            <li>Mainframe generation differences (though not precisely normalized)</li>
+          </ul>
+        </li>
+        <li><strong>Industry Patterns:</strong> These values align with general observations from migration projects, though specific results vary significantly based on workload characteristics, data patterns, and mainframe configurations.</li>
+      </ul>
+      
+      <h3>Limitations and Uncertainty</h3>
+      <p><strong>Important Caveats:</strong></p>
+      <ul>
+        <li><strong>Not Normalized:</strong> These values do not account for differences between mainframe generations (z15 vs z17, etc.). A CPU second on different generations represents different compute capacity, which IBM normalizes using MSUs, not CPU seconds.</li>
+        <li><strong>Approximation Only:</strong> These are approximations that may be inaccurate by 1.4× or more, especially when comparing across different mainframe generations or configurations.</li>
+        <li><strong>Workload-Specific:</strong> Actual k-values vary significantly based on:
+          <ul>
+            <li>Specific query patterns and complexity</li>
+            <li>Data volume and distribution</li>
+            <li>Mainframe generation and configuration</li>
+            <li>Migration approach and optimization</li>
+          </ul>
+        </li>
+        <li><strong>No Universal Standard:</strong> There is no industry-standard methodology for converting Db2 for z/OS CPU seconds to Snowflake compute requirements. These values represent our best estimate given the complexity of cross-platform performance comparison.</li>
+      </ul>
+      
+      <h3>Why Calibration is Essential</h3>
+      <p>Given these limitations, <strong>calibration is not optional—it is essential</strong> for accurate cost estimates. The default values should be viewed as:</p>
+      <ul>
+        <li><strong>Starting points</strong> for initial estimates</li>
+        <li><strong>Placeholders</strong> until actual migration data is available</li>
+        <li><strong>Baselines</strong> for comparison when validating your own measurements</li>
+      </ul>
+      <p>Organizations should calibrate k-values using actual migration testing (see <a href="#calibration-steps">Calibration Steps</a> below) and update them as workloads evolve or migration approaches change. See the Accuracy Limitations section below for more details on accuracy considerations.</p>
+      
+      <p><strong>Bottom Line:</strong> These default k-values are reasonable starting points, but they are estimates based on general patterns rather than precise measurements. Always validate and calibrate for your specific environment.</p>
     </section>
 
     <section class="card" id="what-is-k-factor-and-why-do-we-need-it">
@@ -87,7 +141,7 @@
       <p>However, these estimates are approximations and may be inaccurate by 1.4× or more, especially when comparing across different mainframe generations. The calculator provides a reasonable starting point for cost estimation, but actual costs may vary significantly based on your specific environment, workload patterns, and migration approach. Always validate estimates with pilot migrations and adjust k-values accordingly.</p>
     </section>
 
-    <section class="card">
+    <section class="card" id="calibration-steps">
       <h2>Calibration Steps</h2>
       <ol>
         <li><strong>Pick a representative job</strong> for the workload family (e.g., ELT batch, reporting, or CDC).</li>
