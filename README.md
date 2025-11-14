@@ -6,7 +6,7 @@
 - Static browser app: double‑click `index.html` (no server).
 - CLI: `python scripts/cli.py …` (Python 3.10+ stdlib only).
 
-## Tool Look
+## Tool UI
 <img width="788" height="823" alt="image" src="https://github.com/user-attachments/assets/3b415915-5d58-44b5-ab74-82a6ccb06052" />
 <img width="776" height="821" alt="image" src="https://github.com/user-attachments/assets/14c8e3a9-1dd0-413a-9711-d4489c8cd1cc" />
 <img width="784" height="751" alt="image" src="https://github.com/user-attachments/assets/2b184273-61d7-4c3f-809f-e3e3d8f81df9" />
